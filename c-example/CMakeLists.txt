@@ -20,10 +20,10 @@ target_link_libraries(c_example PUBLIC pthread dl)
 
 # download this file: https://github.com/oax-standard/contributions/raw/develop/X86_64/artifacts/libRuntimeLibrary.so
 # and place it in the build folder
-set(RUNTIME_LIBRARY_PATH ${CMAKE_CURRENT_BINARY_DIR}/libRuntimeLibrary.so)
-# check if the file exists
-if(NOT EXISTS ${RUNTIME_LIBRARY_PATH})
-    file(DOWNLOAD
-            https://github.com/oax-standard/contributions/raw/develop/X86_64/artifacts/libRuntimeLibrary.so
-            ${CMAKE_CURRENT_BINARY_DIR}/libRuntimeLibrary.so)
-endif ()
+#set(RUNTIME_LIBRARY_PATH ${CMAKE_CURRENT_BINARY_DIR}/libRuntimeLibrary.so)
+## check if the file exists
+#if(NOT EXISTS ${RUNTIME_LIBRARY_PATH})
+#    file(DOWNLOAD
+#            https://github.com/oax-standard/contributions/raw/develop/X86_64/artifacts/libRuntimeLibrary.so
+#            ${CMAKE_CURRENT_BINARY_DIR}/libRuntimeLibrary.so)
+#endif ()

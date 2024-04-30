@@ -1,3 +1,10 @@
+# Folders
 .idea
 build
 cmake-build-debug
+
+# files
+*_pipe
+output.jpg
+*.so
+*.tar

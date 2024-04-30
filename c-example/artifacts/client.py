@@ -15,6 +15,7 @@ module_pipe_name = join(_here, 'module_pipe')
 shm_path = 1
 
 input_image_path = join(_here, 'image.jpg')  # TODO: Change this to the path of your image
+output_image_path = join(_here, 'output.jpg')
 height, width, means, stds, nchw = 240, 320, 127, 128, True  # TODO: Change these values to match your model
 
 
@@ -92,7 +93,7 @@ def visualize_bboxes(bboxes, img_path, width, height):
         cv2.putText(img, f'{int(class_id)}', (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
     # save the image
-    cv2.imwrite('output.jpg', img)
+    cv2.imwrite(output_image_path, img)
 
 
 # Create the pipes

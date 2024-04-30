@@ -19,17 +19,32 @@ The server's source code is available in the `src/` directory.
 This example is expected to run on an Ubuntu 22.04 LTS machine with an X86_64 architecture, with Python 3.8
 installed.   
 Additionally, to compile the server, you need a cross-compilation toolchain that can be downloaded
-from [here](https://download.sclbl.net/toolchains/x86_64-unknown-linux-gnu-gcc-9.5.0.tar.gz).
+from [here](https://download.sclbl.net/toolchains/x86_64-unknown-linux-gnu-gcc-9.5.0.tar.gz), and extracted to
+the `/opt` directory.
+
+Moreover, you need to pick an OAX runtime and conversion toolchain that can run on the target architecture. You can use
+the X86_64 runtime and conversion toolchain provided in
+the [contributions](https://github.com/oax-standard/contributions/tree/develop/X86_64), then place them in
+the `artifacts/` directory.
 
 ## Getting started
 
-1. To build the server, run the following command:
+1. The first step to deploy the ONNX model is optimize it for CPU. That can be achieved by running the conversion
+   toolchain using:
+
+```bash
+bash convert-model.sh
+```
+
+This will generate an optimized model `model-optimized.onnx` that can be used by the runtime.
+
+2. To build the server, run the following command:
 
 ```bash
 bash build-server.sh
 ```
 
-2. Once the server is built, you have to start the client first. To do so, run the following command:
+3. Once the server is built, you have to start the client first. To do so, run the following command:
 
 ```bash
 python3 artifacts/client.py
@@ -38,14 +53,14 @@ python3 artifacts/client.py
 The client will print certain parameters that need to be provided to the server in stdout.
 These parameters are used for IPC purposes.
 An example of the parameters is as follows
+
 ```
 Engine paramters (engine_pipe_name, module_pipe_name, shm_id, shm_key): artifacts/engine_pipe artifacts/module_pipe 3047430 17104897
 ```
 
-3. Start the server by running the following command:
+4. Start the server by running the following command:
 
 ```bash
-cd build
 ./c_example <runtime library path> <model filepath> <server pipe> <client pipe> <shm id> <shm key>
 ```
 
@@ -60,6 +75,14 @@ Where:
 
 The last 4 parameters are provided when the client is started.
 
-4. The server will start and wait for the client to send a message. Once the client sends a message, the server will
+For example:
+
+```bash
+cd build
+./c_example ../artifacts/libRuntimeLibrary.so ../artifacts/model-simplified.onnx ...
+```
+
+5. The server will start and wait for the client to send a message. Once the client sends a message, the server will
    parse it, run the model, and send back the results to the client. The client will then visualize the faces on the
-   image and save the result in the `artifacts/` directory."
+   image and save the result in the `artifacts/` directory. For the sake of simplicity, the client will keep sending the
+   same message (since it's using the same JPG image). But that can be easily improved to send different messages.
