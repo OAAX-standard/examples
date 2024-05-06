@@ -1,88 +1,120 @@
 # C example
 
-This example demonstrates the usage of the OAX runtime library to load an optimized model and run it on CPU.
+This example demonstrates the usage of the OAX runtime library to load an optimized ONNX model and run it on CPU.
 
 ## Overview
 
-This folder contains the source code of a C program that will load the runtime library, load the model, and act like a
-server that can take messages from any other process through shared memory and send back the results to the client.
-Those message need to be in a specific format so that the server can parse them correctly to extract the tensor data.
+This folder contains the source code of a C program that will load the runtime library, load the model, and run it on a
+sample image.
+The program will print the output of the model to the console. However, you can confirm the output by comparing it to
+the output of the Python example (which is printed and visualized).
 
-The `artifacts/` directory contains a Python script that serves as a client to the server. It sends a message to the
-server
-containing the input tensor data, and the server will send back the output tensor data.
+The `artifacts/` directory contains the following files:
 
-The server's source code is available in the `src/` directory.
+- `model.onnx`: the optimized ONNX model, which is a face locator model, ie. it will detect faces in an image.
+- `libRuntimeLibrary.so`: the runtime library shared object file.
+- `image.jpg`: an image that contains faces, which will be used as input to the model.
+
+> The source code is available in the `src/` directory.
 
 ## Requirements
 
-This example is expected to run on an Ubuntu 22.04 LTS machine with an X86_64 architecture, with Python 3.8
-installed.   
-Additionally, to compile the server, you need a cross-compilation toolchain that can be downloaded
-from [here](https://download.sclbl.net/toolchains/x86_64-unknown-linux-gnu-gcc-9.5.0.tar.gz), and extracted to
-the `/opt` directory.
+This example is expected to run on an Ubuntu 20.04 (or higher) machine with an X86_64 architecture (since the runtime
+library provided is for X86_64).
 
-Moreover, you need to pick an OAX runtime and conversion toolchain that can run on the target architecture. You can use
-the X86_64 runtime and conversion toolchain provided in
-the [contributions](https://github.com/oax-standard/contributions/tree/develop/X86_64), then place them in
-the `artifacts/` directory.
+Also, make sure that libjpeg is installed on your machine. You can install it using the following command:
+
+```bash
+sudo apt-get install libjpeg-dev
+```
 
 ## Getting started
 
-1. The first step to deploy the ONNX model is optimize it for CPU. That can be achieved by running the conversion
-   toolchain using:
+Assuming you have the required dependencies installed, you can build the example using the following commands:
 
 ```bash
-bash convert-model.sh
-```
-
-This will generate an optimized model `model-optimized.onnx` that can be used by the runtime.
-
-2. To build the server, run the following command:
-
-```bash
-bash build-server.sh
-```
-
-3. Once the server is built, you have to start the client first. To do so, run the following command:
-
-```bash
-python3 artifacts/client.py
-```
-
-The client will print certain parameters that need to be provided to the server in stdout.
-These parameters are used for IPC purposes.
-An example of the parameters is as follows
-
-```
-Engine paramters (engine_pipe_name, module_pipe_name, shm_id, shm_key): artifacts/engine_pipe artifacts/module_pipe 3047430 17104897
-```
-
-4. Start the server by running the following command:
-
-```bash
-./c_example <runtime library path> <model filepath> <server pipe> <client pipe> <shm id> <shm key>
-```
-
-Where:
-
-- `<runtime library path>` is the path to the runtime library shared object file.
-- `<model filepath>` is the path to the optimized model file.
-- `<server pipe>` is the path to the server pipe.
-- `<client pipe>` is the path to the client pipe.
-- `<shm id>` is the shared memory ID.
-- `<shm key>` is the shared memory key.
-
-The last 4 parameters are provided when the client is started.
-
-For example:
-
-```bash
+cd c-example
+mkdir build
 cd build
-./c_example ../artifacts/libRuntimeLibrary.so ../artifacts/model-simplified.onnx ...
+cmake ..
+make
 ```
 
-5. The server will start and wait for the client to send a message. Once the client sends a message, the server will
-   parse it, run the model, and send back the results to the client. The client will then visualize the faces on the
-   image and save the result in the `artifacts/` directory. For the sake of simplicity, the client will keep sending the
-   same message (since it's using the same JPG image). But that can be easily improved to send different messages.
+After building the example, you can run it using the following command (from the `build/` directory):
+
+```bash
+./c_example ./artifacts/libRuntimeLibrary.so ./artifacts/model.onnx  ./artifacts/image.jpg
+```
+
+The program will print the output of the model to the console, along with some additional information.
+
+## Indepth explanation
+
+The `main.c` file contains the main function of the program. It will load the runtime library, load the model, and run
+it on the input image. The script expects three arguments:
+
+- The path to the runtime library shared object file.
+- The path to the optimized model.
+- The path to the input image.
+
+For the sake of example, we've included a sample runtime library, runtime and image in the `artifacts/` directory.
+You can replace it with your own files according to the
+guidelines [below](#adapting-the-example-to-your-own-runtime---model---image-combination).
+
+The `main.c` function uses two functions (available in the `utils.c` file) to preprocess the input image and build the
+input tensors as specified by the
+OAX standard.
+
+- The `preprocess_image` function reads the input image, resizes it to the model's input size, and normalizes it.
+
+```c
+/**
+ * @brief Load the image from the file path, resize it, normalize it and convert it to float.
+ * @param [in] image_path Path to the image file
+ * @param [in] new_width Desired width of the image
+ * @param [in] new_height Desired height of the image
+ * @param [in] mean Float value to subtract from the image pixel values
+ * @param [in] std Float value to divide the image pixel values (after mean subtraction)
+ * @param [in] nchw Boolean flag to indicate if the image should be in NCHW or NHWC format
+ * @return Pointer to the resized image in float format
+ */
+void *load_image(const char *image_path, int new_width, int new_height, float mean, float std, bool nchw);
+```
+
+- The `build_input_tensors` function populates the input tensors with the preprocessed image data along with the NMS
+  threshold.
+
+```c
+/**
+ * @brief Build the tensors struct from the input data
+ * @param [in] data Pointer to the preprocessed image data
+ * @param [in] height Preprocessed image height
+ * @param [in] width Preprocessed image width
+ * @param [in] channels Number of channels in the image
+ * @param [out] tensors Pointer to the tensors struct
+ */
+void build_tensors_struct(uint8_t *data, size_t height, size_t width, size_t channels, tensors_struct *tensors);
+```
+
+These two functions are called in the `main.c` file to preprocess the input image and build the input tensors, as shown
+below:
+
+```c
+// Load the image
+// TODO: Depending on the model inputs, you may need to change the image size, mean, std and the tensors struct
+// Also, make sure to adapt the `resize_image` and `build_tensors_struct` function to your needs
+uint8_t *data = load_image(image_path, 320, 240, 127, 128, true);
+build_tensors_struct(data, 240, 320, 3, &input_tensors);
+```
+
+### Adapting the example to your own runtime - model - image combination
+
+When using your own runtime library, optimized model, and/or input image, make sure that:
+
+- The runtime library shared object file is compiled for the same architecture as your machine.
+- The optimized model file is compatible with the runtime library.
+- The `main.c` file is updated to build the input tensor according to the model's input tensors format. You can find a
+  TODO
+  comment in the `main.c` file, which indicates where you should update the code.
+- You may need to remove/update the last line in the `CMakeLists.txt` file, since it copies the `artifacts/` directory
+  to the build directory.
