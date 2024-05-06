@@ -7,10 +7,10 @@ any OAX-compliant AI Accelerator.
 
 Before running the example, make sure you have the following installed:
 
+- An Ubuntu 18.04 or later x86_64 machine
 - Python 3.8 or higher
-- A compatible OAX runtime shared library (libRuntimeLibrary.so) built for your target architecture.
-- An optimized ONNX model file that can be run on the OAX runtime.
-- The OAX runtime shared library and the optimized model file should be placed in the `artifacts/` directory.
+
+For the sake of example, we've included a sample runtime library, runtime and image in the `artifacts/` directory.
 
 ## Getting started
 
@@ -34,16 +34,55 @@ The output of the model will be printed to the console, and the image will be di
 
 The `main.py` file contains the main function of the program. It will load the runtime library, load the model, and run
 it on the input image. The script expects three arguments:
+
 - The path to the runtime library shared object file.
 - The path to the optimized model.
 - The path to the input image.
 
-For the sake of example, we've included a sample runtime library, runtime and image in the `artifacts/` directory.
+Those arguments are used to create a `Runtime` object, which is used to run inference on the input image, as shown in the 
+code snippet below:
+```python
+# Load the runtime library from `lib_path`
+runtime = OAXRuntime(lib_path)
+
+rt_name = runtime.name
+print(f'Runtime name: {rt_name}')
+
+rt_version = runtime.version
+print(f'Runtime version: {rt_version}')
+
+# Initialize the runtime
+runtime.initialize()
+# Load the model
+runtime.load_model(onnx_path)
+# prepare the input_tensors
+image = preprocess_image(image_path, 320, 240, 127, 128)
+input_tensors = {'image-': image, 'nms_sensitivity': np.array([0.5], dtype='float32')}
+
+# Run the inference
+output_data = runtime.inference(input_tensors)
+```
+
+The `src/runtime.py` file contains the `Runtime` class, which is used to interact with the OAX runtime and manage the
+data structure so that it's compatible for the C runtime and Python based on who's using it. 
+For example, the `Runtime` class will convert the input image to a format that the runtime can understand, and convert 
+the output of the model to a format that can be used by Python as shown in the code snippet below:
+```python
+def inference(self, input_data: Dict[str, np.ndarray]):
+    input_tensors = numpy_to_c_struct(input_data)
+    output_tensors = tensors_struct()
+    exit_code = self.lib.runtime_inference_execution(input_tensors, output_tensors)
+    output_data = c_struct_to_numpy(output_tensors)
+    return output_data
+```
+
+The `src/runtime_utils.py` file contains utility functions that are used to convert data between Python and C data structures:
+`numpy_to_c_struct` and `c_struct_to_numpy`.
 
 
 ### Adapting the example
 
-To adapt the example to your use case, you can modify the `main.py` file to load a different model, or run inference on 
-a different image. You can also modify the `requirements.txt` file to include any additional dependencies that your 
+To adapt the example to your use case, you can modify the `main.py` file to load a different model, or run inference on
+a different image. You can also modify the `requirements.txt` file to include any additional dependencies that your
 Python code may require.
 

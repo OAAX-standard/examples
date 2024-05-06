@@ -20,7 +20,7 @@ The `artifacts/` directory contains the following files:
 ## Requirements
 
 This example is expected to run on an Ubuntu 20.04 (or higher) machine with an X86_64 architecture (since the runtime
-library provided is for X86_64).
+library provided is built for X86_64).
 
 Also, make sure that libjpeg is installed on your machine. You can install it using the following command:
 
@@ -62,8 +62,7 @@ You can replace it with your own files according to the
 guidelines [below](#adapting-the-example-to-your-own-runtime---model---image-combination).
 
 The `main.c` function uses two functions (available in the `utils.c` file) to preprocess the input image and build the
-input tensors as specified by the
-OAX standard.
+input tensors as specified in the OAX standard.
 
 - The `preprocess_image` function reads the input image, resizes it to the model's input size, and normalizes it.
 

@@ -5,14 +5,19 @@ import numpy as np
 from runtime import ThreadedRuntime
 from utils import visualize_bboxes, preprocess_image
 
-if __name__ == '__main__':
-    _here = dirname(__file__)
-    artifacts_path = join(_here, '..', 'artifacts')
+import argparse
 
-    lib_path = join(artifacts_path, 'libRuntimeLibrary.so')
-    onnx_path1 = join(artifacts_path, 'face-locator.onnx')
-    onnx_path2 = join(artifacts_path, 'object-detector.onnx')
-    image_path = join(artifacts_path, 'image.jpg')
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='OAX Python Runtime Example')
+    parser.add_argument('--lib', type=str, required=True, help='Path to the shared library')
+    parser.add_argument('--onnx1', type=str, required=True, help='Path to the first ONNX model')
+    parser.add_argument('--onnx2', type=str, required=True, help='Path to the second ONNX model')
+    parser.add_argument('--image', type=str, required=True, help='Path to the image')
+    args = parser.parse_args()
+    lib_path = args.lib
+    onnx_path1 = args.onnx1
+    onnx_path2 = args.onnx2
+    image_path = args.image
 
     runtime1 = ThreadedRuntime(lib_path)
     runtime2 = ThreadedRuntime(lib_path)
