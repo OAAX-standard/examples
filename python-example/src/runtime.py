@@ -1,4 +1,5 @@
 import ctypes
+import os
 from typing import Dict
 
 import numpy as np
@@ -9,7 +10,14 @@ from runtime_utils import tensors_struct, numpy_to_c_struct, c_struct_to_numpy
 class OAXRuntime:
 
     def __init__(self, library_path: str):
-        lib = ctypes.CDLL(library_path)
+        selfimg = ctypes.CDLL('')
+        selfimg.dlmopen.restype = ctypes.c_void_p
+        selfimg.dlerror.restype = ctypes.c_char_p
+        dlopen_flags = os.RTLD_NOW | os.RTLD_DEEPBIND | os.RTLD_LOCAL
+
+        # Open the library in a separate namespace using dlmopen
+        _h = selfimg.dlmopen(-1, library_path.encode('utf-8'), dlopen_flags)
+        lib = ctypes.CDLL(library_path, handle=_h, mode=dlopen_flags)
 
         # Define the function signatures
         lib.runtime_initialization.argtypes = []
@@ -38,11 +46,13 @@ class OAXRuntime:
 
         self.lib = lib
 
+    @property
     def name(self):
         runtime_name = self.lib.runtime_name()
         runtime_name = ctypes.cast(runtime_name, ctypes.c_char_p).value.decode('utf-8')
         return runtime_name
 
+    @property
     def version(self):
         runtime_version = self.lib.runtime_version()
         runtime_version = ctypes.cast(runtime_version, ctypes.c_char_p).value.decode('utf-8')
