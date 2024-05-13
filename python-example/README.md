@@ -1,7 +1,7 @@
 # Python example
 
-The Python example is used to demonstrate how an OAX runtime can be loaded during runtime, and used to run inference on
-any OAX-compliant AI Accelerator.
+The Python example is used to demonstrate how an OAAX runtime can be loaded during runtime, and used to run inference on
+any OAAX-compliant AI Accelerator.
 
 ## Requirements
 
@@ -22,7 +22,7 @@ python src/main.py --lib artifacts/libRuntimeLibrary.so --onnx artifacts/model.o
 
 ```
 
-The Python code will load the OAX runtime shared library and create a runtime variable that can be used to interact with
+The Python code will load the OAAX runtime shared library and create a runtime variable that can be used to interact with
 the low-level runtime API.
 
 The runtime loads an ONNX model from the `artifacts/model.onnx` directory, and runs inference on a test image available
@@ -43,7 +43,7 @@ Those arguments are used to create a `Runtime` object, which is used to run infe
 code snippet below:
 ```python
 # Load the runtime library from `lib_path`
-runtime = OAXRuntime(lib_path)
+runtime = OAAXRuntime(lib_path)
 
 rt_name = runtime.name
 print(f'Runtime name: {rt_name}')
@@ -63,7 +63,7 @@ input_tensors = {'image-': image, 'nms_sensitivity': np.array([0.5], dtype='floa
 output_data = runtime.inference(input_tensors)
 ```
 
-The `src/runtime.py` file contains the `Runtime` class, which is used to interact with the OAX runtime and manage the
+The `src/runtime.py` file contains the `Runtime` class, which is used to interact with the OAAX runtime and manage the
 data structure so that it's compatible for the C runtime and Python based on who's using it. 
 For example, the `Runtime` class will convert the input image to a format that the runtime can understand, and convert 
 the output of the model to a format that can be used by Python as shown in the code snippet below:

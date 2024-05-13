@@ -7,7 +7,7 @@ import numpy as np
 from runtime_utils import tensors_struct, numpy_to_c_struct, c_struct_to_numpy
 
 
-class OAXRuntime:
+class OAAXRuntime:
 
     def __init__(self, library_path: str):
         selfimg = ctypes.CDLL('')
