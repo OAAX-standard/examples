@@ -2,7 +2,7 @@ import argparse
 
 import numpy as np
 
-from runtime import OAXRuntime
+from runtime import OAAXRuntime
 from utils import visualize_bboxes, preprocess_image
 
 if __name__ == '__main__':
@@ -15,7 +15,7 @@ if __name__ == '__main__':
     onnx_path = args.onnx
     image_path = args.image
 
-    runtime = OAXRuntime(lib_path)
+    runtime = OAAXRuntime(lib_path)
 
     rt_name = runtime.name
     print(f'Runtime name: {rt_name}')

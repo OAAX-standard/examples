@@ -1,6 +1,6 @@
 # C example
 
-This example demonstrates the usage of the OAX runtime library to load an optimized ONNX model and run it on CPU.
+This example demonstrates the usage of the OAAX runtime library to load an optimized ONNX model and run it on CPU.
 
 ## Overview
 
@@ -62,7 +62,7 @@ You can replace it with your own files according to the
 guidelines [below](#adapting-the-example-to-your-own-runtime---model---image-combination).
 
 The `main.c` function uses two functions (available in the `utils.c` file) to preprocess the input image and build the
-input tensors as specified in the OAX standard.
+input tensors as specified in the OAAX standard.
 
 - The `preprocess_image` function reads the input image, resizes it to the model's input size, and normalizes it.
 
