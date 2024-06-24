@@ -7,6 +7,8 @@ void destroy_runtime(Runtime *runtime) {
     if (runtime == NULL)
         return;
 
+    runtime->runtime_destruction();
+
     if (runtime->_library_path != NULL) {
         free(runtime->_library_path);
         runtime->_library_path = NULL;
@@ -16,8 +18,6 @@ void destroy_runtime(Runtime *runtime) {
         dlclose(runtime->_handle);
         runtime->_handle = NULL;
     }
-
-    runtime->runtime_destruction();
 
     free(runtime);
     runtime = NULL;
@@ -43,7 +43,7 @@ Runtime *initialize_runtime(const char *library_path) {
     strcpy(runtime->_library_path, library_path);
 
     // Load the shared library
-    runtime->_handle = dlmopen(LM_ID_NEWLM, library_path, RTLD_GLOBAL | RTLD_NOW | RTLD_DEEPBIND);
+    runtime->_handle = dlopen(library_path, RTLD_LAZY);
     if (runtime->_handle == NULL) {
         destroy_runtime(runtime);
         printf("Failed to load library: %s\n", dlerror());
