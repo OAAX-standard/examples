@@ -7,7 +7,8 @@ void destroy_runtime(Runtime *runtime) {
     if (runtime == NULL)
         return;
 
-    runtime->runtime_destruction();
+    if(runtime->runtime_destruction != NULL)
+        runtime->runtime_destruction();
 
     if (runtime->_library_path != NULL) {
         free(runtime->_library_path);

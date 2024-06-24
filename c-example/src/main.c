@@ -22,6 +22,8 @@ int main(int argc, char **argv) {
 
     // Initialize the runtime environment
     Runtime *runtime = initialize_runtime(library_path);
+    if(runtime == NULL)
+        return 1;
 
     printf("Runtime name: %s - Runtime version: %s\n",
            runtime->runtime_name(),
