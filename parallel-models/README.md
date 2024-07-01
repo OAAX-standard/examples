@@ -32,7 +32,7 @@ To run the parallel models example, follow these steps:
 
 ```bash
 pip install -r requirements.txt
-python src/main.py --lib artifacts/libRuntimeLibrary.so --onnx1 artifacts/face-locator.onnx --onnx2 artifacts/object-detector.onnx --image artifacts/image.jpg
+python3 src/main.py --lib artifacts/libRuntimeLibrary.so --onnx1 artifacts/face-locator.onnx --onnx2 artifacts/object-detector.onnx --image artifacts/image.jpg
 ```
 
 ## Indepth explanation

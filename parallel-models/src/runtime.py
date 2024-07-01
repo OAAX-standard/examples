@@ -15,7 +15,7 @@ class OAAXRuntime:
         selfimg = ctypes.CDLL('')
         selfimg.dlmopen.restype = ctypes.c_void_p
         selfimg.dlerror.restype = ctypes.c_char_p
-        dlopen_flags = os.RTLD_NOW | os.RTLD_DEEPBIND | os.RTLD_GLOBAL
+        dlopen_flags = os.RTLD_LAZY
 
         # Open the library in a separate namespace using dlmopen
         _h = selfimg.dlmopen(-1, library_path.encode('utf-8'), dlopen_flags)
