@@ -1,6 +1,8 @@
 #include "runtime_utils.h"
 #include "utils.h"
 
+#define NUMBER_OR_INFERENCE 1
+
 int main(int argc, char **argv) {
     char *library_path;
     char *model_path;
@@ -20,6 +22,8 @@ int main(int argc, char **argv) {
 
     // Initialize the runtime environment
     Runtime *runtime = initialize_runtime(library_path);
+    if(runtime == NULL)
+        return 1;
 
     printf("Runtime name: %s - Runtime version: %s\n",
            runtime->runtime_name(),
@@ -43,17 +47,20 @@ int main(int argc, char **argv) {
     uint8_t *data = load_image(image_path, 320, 240, 127, 128, true);
     build_tensors_struct(data, 240, 320, 3, &input_tensors);
 
-    // Perform inference
-    runtime->runtime_inference_execution(&input_tensors, &output_tensors);
+    for(int i=0; i<NUMBER_OR_INFERENCE; i++){
+        // Perform inference
+        runtime->runtime_inference_execution(&input_tensors, &output_tensors);
 
-    // Extract the output tensors
-    print_output_tensors(&output_tensors);
+        // Extract the output tensors
+        print_output_tensors(&output_tensors);
+
+        // Request the runtime to cleanup the output tensors
+        runtime->runtime_inference_cleanup();
+    }
 
     // Free the input tensors
     free_tensors_struct(&input_tensors);
 
-    // Request the runtime to cleanup the output tensors
-    runtime->runtime_inference_cleanup();
 
     destroy_runtime(runtime);
     return 0;
