@@ -6,7 +6,7 @@ project(c_example)
 add_definitions(-D_GNU_SOURCE)
 
 # Include directories
-add_executable(c_example src/main.c src/runtime_utils.c src/utils.c src/timer.c)
+add_executable(c_example src/main.c src/runtime_utils.c src/utils.c)
 
 target_include_directories(c_example PUBLIC include)
 target_link_libraries(c_example PUBLIC pthread dl jpeg)

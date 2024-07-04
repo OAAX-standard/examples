@@ -15,6 +15,7 @@ The repository is structured as follows:
 - [python-example](python-example): Contains an example of how to use the OAAX runtime in a Python program.
 - [parallel-models](parallel-models): Contains an example of how to use the OAAX runtime to run multiple models in
   parallel.
+- [image-classification-example](image-classification-example): Contains an example of how to exchange an OAAX runtime with another
 
 ## Getting started
 

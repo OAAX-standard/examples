@@ -5,6 +5,9 @@ project(c_example)
 # This compiler setting is required to use dlmopen, which is a GNU extension
 add_definitions(-D_GNU_SOURCE)
 
+# 
+set(TOOLS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../tools/c-utilities)
+
 # Cross-compilation settings
 #set(CROSS_NAME "X86_64")
 #set(CROSS_ROOT "/opt/x86_64-unknown-linux-gnu-gcc-9.5.0")
@@ -14,9 +17,14 @@ add_definitions(-D_GNU_SOURCE)
 #set(CMAKE_LINKER ${CROSS_ROOT}/bin/${COMPILER_PREFIX}ld)
 
 # Include directories
-add_executable(c_example src/main.c src/runtime_utils.c src/utils.c)
+file(GLOB UTIL_FILES ${TOOLS_PATH}/src/*)
+add_executable(c_example src/main.c src/runtime_utils.c src/utils.c ${UTIL_FILES})
 
+# include headers
+target_include_directories(c_example PUBLIC ${TOOLS_PATH}/include)
 target_include_directories(c_example PUBLIC include)
+
+# link libs
 target_link_libraries(c_example PUBLIC pthread dl jpeg)
 
 # Copy files in the "artifacts" directory to the build directory

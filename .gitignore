@@ -3,6 +3,7 @@ hailo_deps
 .idea
 build
 cmake-build-debug
+__pycache__
 
 # files
 *_pipe
