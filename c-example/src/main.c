@@ -4,7 +4,7 @@
 #include "memory.h"
 #include "timer.h"
 
-#define NUMBER_OR_INFERENCE 1000
+#define NUMBER_OR_INFERENCE 3000
 
 int main(int argc, char **argv) {
     // utils
@@ -24,9 +24,6 @@ int main(int argc, char **argv) {
     library_path = argv[1];
     model_path = argv[2];
     image_path = argv[3];
-
-    // Declare the input and output tensors
-    tensors_struct input_tensors, output_tensors;
 
     // Initialize the runtime environment
     Runtime *runtime = initialize_runtime(library_path);
@@ -49,31 +46,46 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Load the image
-    // TODO: Depending on the model inputs, you may need to change the image size, mean, std and the tensors struct
-    // Also, make sure to adapt the `resize_image` and `build_tensors_struct` function to your needs
-    uint8_t *data = load_image(image_path, 320, 240, 127, 128, true);
-    build_tensors_struct(data, 240, 320, 3, &input_tensors);
-
     start_recording(&timer);
+    // Send inputs
     for(int i=0; i<NUMBER_OR_INFERENCE; i++){
-        // Record memory used by this program
-        if(i > 1)
+        // Load the image
+        // TODO: Depending on the model inputs, you may need to change the image size, mean, std and the tensors struct
+        // Also, make sure to adapt the `resize_image` and `build_tensors_struct` function to your needs
+        uint8_t *data = load_image(image_path, 320, 240, 127, 128, true);
+        tensors_struct *input_tensors = build_tensors_struct(data, 240, 320, 3);
+
+        // Record memory at the first iteration
+        if(i == 1)
             record_memory(memory);
-
-        // Perform inference
-        runtime->runtime_inference_execution(&input_tensors, &output_tensors);
-
-        // Extract the output tensors
-        // print_output_tensors(&output_tensors);
-
-        // Request the runtime to cleanup the output tensors
-        runtime->runtime_inference_cleanup();
+        // Send the input tensors
+        int code = runtime->send_input(input_tensors);
+        if (code != 0) {
+            printf("Failed to send input tensors.\n");
+            return 1;
+        }
     }
-    stop_recording(&timer);
+    // Receive outputs
+    for(int i=0; i<NUMBER_OR_INFERENCE; i++){
+        tensors_struct *output_tensors;
+        // Receive the output tensors
+        int code = runtime->receive_output(output_tensors);
+        if (code != 0) {
+            printf("Failed to receive output tensors.\n");
+            return 1;
+        }
 
-    // Free the input tensors
-    free_tensors_struct(&input_tensors);
+        if (i == NUMBER_OR_INFERENCE - 1){
+            // Print the output tensors in the last iteration
+            print_output_tensors(output_tensors);
+        }
+        // Free the output tensors
+        free_tensors_struct(output_tensors);
+    }
+
+    // Record memory after the last iteration
+    record_memory(memory);
+    stop_recording(&timer);
 
     // Read statistics
     long first = get_first_record(memory);

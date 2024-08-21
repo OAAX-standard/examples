@@ -7,8 +7,9 @@ void destroy_runtime(Runtime *runtime) {
     if (runtime == NULL)
         return;
 
-    if(runtime->runtime_destruction != NULL)
+    if(runtime->runtime_destruction != NULL){
         runtime->runtime_destruction();
+    }
 
     if (runtime->_library_path != NULL) {
         free(runtime->_library_path);
@@ -53,9 +54,11 @@ Runtime *initialize_runtime(const char *library_path) {
 
     runtime->runtime_initialization = dlsym(runtime->_handle, "runtime_initialization");
     if (runtime->runtime_initialization == NULL) {
-        destroy_runtime(runtime);
-        printf("Failed to load `runtime_initialization` function: %s.\n", dlerror());
-        return NULL;
+        printf("`runtime_initialization` not implemented: %s.\n", dlerror());
+    }
+    runtime->runtime_initialization_with_args = dlsym(runtime->_handle, "runtime_initialization_with_args");
+    if (runtime->runtime_initialization_with_args == NULL) {
+        printf("`runtime_initialization_with_args` not implemented: %s.\n", dlerror());
     }
     runtime->runtime_model_loading = dlsym(runtime->_handle, "runtime_model_loading");
     if (runtime->runtime_model_loading == NULL) {
@@ -63,16 +66,16 @@ Runtime *initialize_runtime(const char *library_path) {
         printf("Failed to load `runtime_model_loading` function: %s.\n", dlerror());
         return NULL;
     }
-    runtime->runtime_inference_execution = dlsym(runtime->_handle, "runtime_inference_execution");
-    if (runtime->runtime_inference_execution == NULL) {
+    runtime->send_input = dlsym(runtime->_handle, "send_input");
+    if (runtime->send_input == NULL) {
         destroy_runtime(runtime);
-        printf("Failed to load `runtime_inference_execution` function: %s.\n", dlerror());
+        printf("Failed to load `send_input` function: %s.\n", dlerror());
         return NULL;
     }
-    runtime->runtime_inference_cleanup = dlsym(runtime->_handle, "runtime_inference_cleanup");
-    if (runtime->runtime_inference_cleanup == NULL) {
+    runtime->receive_output = dlsym(runtime->_handle, "receive_output");
+    if (runtime->receive_output == NULL) {
         destroy_runtime(runtime);
-        printf("Failed to load `runtime_inference_cleanup` function: %s.\n", dlerror());
+        printf("Failed to load `receive_output` function: %s.\n", dlerror());
         return NULL;
     }
     runtime->runtime_destruction = dlsym(runtime->_handle, "runtime_destruction");

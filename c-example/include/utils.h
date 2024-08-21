@@ -40,9 +40,10 @@ void *load_image(const char *image_path, int new_width, int new_height, float me
  * @param [in] height Preprocessed image height
  * @param [in] width Preprocessed image width
  * @param [in] channels Number of channels in the image
- * @param [out] tensors Pointer to the tensors struct
+ * 
+ * @return Pointer to the tensors struct
  */
-void build_tensors_struct(uint8_t *data, size_t height, size_t width, size_t channels, tensors_struct *tensors);
+tensors_struct * build_tensors_struct(uint8_t *data, size_t height, size_t width, size_t channels);
 
 /**
  * @brief Print information about the output tensors

@@ -81,7 +81,13 @@ void *load_image(const char *image_path, int new_width, int new_height, float me
     return (void *) resized_image;
 }
 
-void build_tensors_struct(uint8_t *data, size_t height, size_t width, size_t channels, tensors_struct *input_tensors) {
+tensors_struct *build_tensors_struct(uint8_t *data, size_t height, size_t width, size_t channels) {
+    tensors_struct *input_tensors = (tensors_struct *) malloc(sizeof(tensors_struct));
+
+    if (input_tensors == NULL) {
+        printf("Failed to allocate memory for input tensors.\n");
+        return NULL;
+    }
     input_tensors->num_tensors = 2;
     input_tensors->names = NULL;
     input_tensors->data_types = (tensor_data_type *) malloc(input_tensors->num_tensors * sizeof(tensor_data_type));
@@ -106,6 +112,8 @@ void build_tensors_struct(uint8_t *data, size_t height, size_t width, size_t cha
     input_tensors->shapes[1][0] = 1;
     input_tensors->data[1] = (void *) malloc(input_tensors->shapes[1][0] * sizeof(float));
     ((float *) input_tensors->data[1])[0] = 0.5f;
+
+    return input_tensors;
 }
 
 void print_output_tensors(tensors_struct *output_tensors) {
