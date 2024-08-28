@@ -46,13 +46,27 @@ void *load_image(const char *image_path, int new_width, int new_height, float me
 tensors_struct * build_tensors_struct(uint8_t *data, size_t height, size_t width, size_t channels);
 
 /**
- * @brief Print information about the output tensors
- * @param [in] output_tensors Pointer to the output tensors struct
+ * @brief Print information about tensors
+ * @param [in] output_tensors Pointer to the tensors struct
  */
-void print_output_tensors(tensors_struct *output_tensors);
+void print_tensors(tensors_struct *tensors);
 
 /**
  * @brief Free the tensors struct
  * @param [in] tensors Pointer to the tensors struct
  */
 void free_tensors_struct(tensors_struct *tensors);
+
+/**
+ * @brief Deep copy the tensors struct
+ * @param [in] tensors Pointer to the tensors struct
+ * @return Pointer to the deep copied tensors struct
+ */
+tensors_struct *deep_copy_tensors_struct(tensors_struct *tensors);
+
+/**
+ * @brief Get the number of bytes for the given ONNX data type
+ * @param [in] datatype ONNX data type
+ * @return Number of bytes
+ */
+int64_t get_sizeof_onnx_type(int32_t datatype);

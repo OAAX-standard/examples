@@ -1,4 +1,5 @@
 #include "utils.h"
+#include "string.h"
 
 void resize_image(const unsigned char *image,
                   int width,
@@ -116,28 +117,30 @@ tensors_struct *build_tensors_struct(uint8_t *data, size_t height, size_t width,
     return input_tensors;
 }
 
-void print_output_tensors(tensors_struct *output_tensors) {
+void print_tensors(tensors_struct *tensors) {
     // Extract the output tensors
-    printf("Number of output tensors: %zu\n", output_tensors->num_tensors);
+    printf("Number of output tensors: %zu\n", tensors->num_tensors);
 
-    for (size_t i = 0; i < output_tensors->num_tensors; i++) {
-        printf("Tensor name: %s\n", output_tensors->names[i]);
-        printf("Tensor data type: %d\n", output_tensors->data_types[i]);
-        printf("Tensor rank: %zu\n", output_tensors->ranks[i]);
+    for (size_t i = 0; i < tensors->num_tensors; i++) {
+        if(tensors->names != NULL)
+            printf("Tensor name: %s\n", tensors->names[i]);
+        printf("Tensor data type: %d\n", tensors->data_types[i]);
+        printf("Tensor rank: %zu\n", tensors->ranks[i]);
         printf("Tensor shape: [");
-        for (size_t j = 0; j < output_tensors->ranks[i]; j++) {
-            printf("%zu, ", output_tensors->shapes[i][j]);
+        for (size_t j = 0; j < tensors->ranks[i]; j++) {
+            printf("%zu, ", tensors->shapes[i][j]);
         }
         printf("]\n");
         printf("Tensor data: \n");
-        float *data = (float *) output_tensors->data[i];
+        float *data = (float *) tensors->data[i];
         size_t size = 1;
-        for (size_t j = 0; j < output_tensors->ranks[i]; j++) {
-            size *= output_tensors->shapes[i][j];
+        for (size_t j = 0; j < tensors->ranks[i]; j++) {
+            size *= tensors->shapes[i][j];
         }
-        for (size_t j = 0; j < size; j++) {
+        int size_to_print = size < 10 ? size : 10;
+        for (size_t j = 0; j < size_to_print; j++) {
             printf("%f, ", data[j]);
-            if(j % output_tensors->shapes[0][1] == 5)
+            if(j % tensors->shapes[0][1] == 5)
                 printf("\n");
         }
     }
@@ -182,4 +185,79 @@ void free_tensors_struct(tensors_struct *tensors) {
         free(tensors->names);
         tensors->names = NULL;
     }
+    free(tensors);
+}
+
+tensors_struct* deep_copy_tensors_struct(tensors_struct* tensors) {
+    long all_bytes = 0;
+    tensors_struct* new_tensors = (tensors_struct*)malloc(sizeof(tensors_struct));
+    all_bytes += sizeof(tensors_struct);
+    new_tensors->num_tensors = tensors->num_tensors;
+    if (tensors->names == NULL) {
+        new_tensors->names = NULL;
+    } else {
+        new_tensors->names = (char**)malloc(new_tensors->num_tensors * sizeof(char*));
+        all_bytes += new_tensors->num_tensors * sizeof(char*);
+    }
+    new_tensors->data_types = (tensor_data_type*)malloc(new_tensors->num_tensors * sizeof(tensor_data_type));
+    all_bytes += new_tensors->num_tensors * sizeof(tensor_data_type);
+    new_tensors->ranks = (size_t*)malloc(new_tensors->num_tensors * sizeof(size_t));
+    all_bytes += new_tensors->num_tensors * sizeof(size_t);
+    new_tensors->shapes = (size_t**)malloc(new_tensors->num_tensors * sizeof(size_t*));
+    all_bytes += new_tensors->num_tensors * sizeof(size_t*);
+    new_tensors->data = (void**)malloc(new_tensors->num_tensors * sizeof(void*));
+    all_bytes += new_tensors->num_tensors * sizeof(void*);
+
+    for (size_t i = 0; i < new_tensors->num_tensors; i++) {
+        // Copy the names
+        if (new_tensors->names != NULL) {
+            new_tensors->names[i] = (char*)malloc(strlen(tensors->names[i]) + 1);
+            strcpy(new_tensors->names[i], tensors->names[i]);
+            all_bytes += strlen(tensors->names[i]) + 1;
+        }
+        // Copy the data types
+        new_tensors->data_types[i] = tensors->data_types[i];
+        // Copy the ranks
+        new_tensors->ranks[i] = tensors->ranks[i];
+        // Copy the shapes
+        new_tensors->shapes[i] = (size_t*)malloc(new_tensors->ranks[i] * sizeof(size_t));
+        all_bytes += new_tensors->ranks[i] * sizeof(size_t);
+        long size = 1;
+        for (size_t j = 0; j < new_tensors->ranks[i]; j++) {
+            new_tensors->shapes[i][j] = tensors->shapes[i][j];
+            size *= new_tensors->shapes[i][j];
+        }
+        // Copy the data
+        long bytes = size * get_sizeof_onnx_type(new_tensors->data_types[i]);
+        new_tensors->data[i] = (void*) malloc(bytes);
+        all_bytes += bytes;
+        memcpy(new_tensors->data[i], tensors->data[i], bytes);
+    }
+    printf("Deep copy of tensors_struct: %ld bytes\n", all_bytes);
+
+    return new_tensors;
+}
+
+int64_t get_sizeof_onnx_type(int32_t datatype) {
+    if (datatype == DATA_TYPE_INT8)
+        return sizeof(int8_t);
+    if (datatype == DATA_TYPE_UINT8)
+        return sizeof(uint8_t);
+    if (datatype == DATA_TYPE_BOOL)
+        return sizeof(bool);
+    if (datatype == DATA_TYPE_INT16)
+        return sizeof(int16_t);
+    if (datatype == DATA_TYPE_INT16)
+        return sizeof(int16_t);
+    if (datatype == DATA_TYPE_UINT16)
+        return sizeof(uint16_t);
+    if (datatype == DATA_TYPE_INT32)
+        return sizeof(int32_t);
+    if (datatype == DATA_TYPE_INT64)
+        return sizeof(int64_t);
+    if (datatype == DATA_TYPE_FLOAT)
+        return sizeof(float);
+    if (datatype == DATA_TYPE_DOUBLE)
+        return sizeof(double);
+    return 0;
 }

@@ -35,7 +35,7 @@ typedef struct Runtime {
     int (*runtime_initialization_with_args)(int length, const char **keys, const void **values);
     int (*runtime_model_loading)(const char *file_path);
     int (*send_input)(tensors_struct *input_tensors);
-    int (*receive_output)(tensors_struct *output_tensors);
+    int (*receive_output)(tensors_struct **output_tensors);
     int (*runtime_destruction)();
     const char *(*runtime_error_message)();
     const char *(*runtime_version)();
