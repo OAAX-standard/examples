@@ -1,5 +1,37 @@
 #include "utils.h"
 #include "string.h"
+#include <malloc.h>
+#include <math.h>
+
+
+const char *human_memory_size(uint64_t bytes) {
+    static char result[20]; // Use a static buffer to avoid multiple allocations
+    const char *sizeNames[] = { "B", "KB", "MB", "GB", "TB" }; // Added TB for larger sizes
+
+    if (bytes == 0) {
+        snprintf(result, sizeof(result), "0 B");
+        return result;
+    }
+
+    int i = (int)floor(log(bytes) / log(1024));
+    if (i >= 4) i = 4; // Prevents overflow if sizes go beyond TB
+    double humanSize = bytes / pow(1024, i);
+    snprintf(result, sizeof(result), "%.2f %s", humanSize, sizeNames[i]);
+
+    return result;
+}
+
+void print_memory_usage(const char *name) {
+    struct mallinfo mi = mallinfo();
+
+    printf("\n\n----------------------------------------------------------------\n");
+    printf("Memory usage at %s\n", name);
+    printf("Total allocated space: %s\n", human_memory_size(mi.uordblks));
+    printf("Total free space: %s\n", human_memory_size(mi.fordblks));
+    printf("Total releasable space: %s\n", human_memory_size(mi.keepcost));
+    printf("------------------h-----------------------------------------------\n\n");
+}
+
 
 void resize_image(const unsigned char *image,
                   int width,
@@ -161,8 +193,10 @@ void free_tensors_struct(tensors_struct *tensors) {
 
     if (tensors->data != NULL) {
         for (size_t i = 0; i < tensors->num_tensors; i++) {
-            if (tensors->data[i] != NULL)
+            if (tensors->data[i] != NULL) {
                 free(tensors->data[i]);
+                tensors->data[i] = NULL;
+            }
         }
         free(tensors->data);
         tensors->data = NULL;
@@ -170,8 +204,10 @@ void free_tensors_struct(tensors_struct *tensors) {
 
     if (tensors->shapes != NULL) {
         for (size_t i = 0; i < tensors->num_tensors; i++) {
-            if (tensors->shapes[i] != NULL)
+            if (tensors->shapes[i] != NULL) {
                 free(tensors->shapes[i]);
+                tensors->shapes[i] = NULL;
+            }
         }
         free(tensors->shapes);
         tensors->shapes = NULL;
@@ -179,13 +215,16 @@ void free_tensors_struct(tensors_struct *tensors) {
 
     if (tensors->names != NULL) {
         for (size_t i = 0; i < tensors->num_tensors; i++) {
-            if (tensors->names[i] != NULL)
+            if (tensors->names[i] != NULL) {
                 free(tensors->names[i]);
+                tensors->names[i] = NULL;
+            }
         }
         free(tensors->names);
         tensors->names = NULL;
     }
     free(tensors);
+    tensors = NULL;
 }
 
 tensors_struct* deep_copy_tensors_struct(tensors_struct* tensors) {
