@@ -9,7 +9,7 @@
 #include <errno.h>
 
 // Number of inferences to perform
-#define NUMBER_OF_INFERENCE 1000
+#define NUMBER_OF_INFERENCE 10000
 
 // Global variable to hold the original input tensors
 tensors_struct *original_input_tensors = NULL;
@@ -194,4 +194,3 @@ int main(int argc, char **argv) {
 
     return 0;
 }
-I
