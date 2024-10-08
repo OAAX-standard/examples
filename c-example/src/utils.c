@@ -3,36 +3,6 @@
 #include <malloc.h>
 #include <math.h>
 
-
-const char *human_memory_size(uint64_t bytes) {
-    static char result[20]; // Use a static buffer to avoid multiple allocations
-    const char *sizeNames[] = { "B", "KB", "MB", "GB", "TB" }; // Added TB for larger sizes
-
-    if (bytes == 0) {
-        snprintf(result, sizeof(result), "0 B");
-        return result;
-    }
-
-    int i = (int)floor(log(bytes) / log(1024));
-    if (i >= 4) i = 4; // Prevents overflow if sizes go beyond TB
-    double humanSize = bytes / pow(1024, i);
-    snprintf(result, sizeof(result), "%.2f %s", humanSize, sizeNames[i]);
-
-    return result;
-}
-
-void print_memory_usage(const char *name) {
-    struct mallinfo mi = mallinfo();
-
-    printf("\n\n----------------------------------------------------------------\n");
-    printf("Memory usage at %s\n", name);
-    printf("Total allocated space: %s\n", human_memory_size(mi.uordblks));
-    printf("Total free space: %s\n", human_memory_size(mi.fordblks));
-    printf("Total releasable space: %s\n", human_memory_size(mi.keepcost));
-    printf("------------------h-----------------------------------------------\n\n");
-}
-
-
 void resize_image(const unsigned char *image,
                   int width,
                   int height,
@@ -60,7 +30,7 @@ void resize_image(const unsigned char *image,
 void *load_image(const char *image_path, int new_width, int new_height, float mean, float std, bool nchw) {
     FILE *input_file = fopen(image_path, "rb");
     if (!input_file) {
-        printf("Error: Couldn't open the input file.\n");
+        printf("Error: Couldn't open the image file.\n");
         return NULL;
     }
 
@@ -228,31 +198,23 @@ void free_tensors_struct(tensors_struct *tensors) {
 }
 
 tensors_struct* deep_copy_tensors_struct(tensors_struct* tensors) {
-    long all_bytes = 0;
     tensors_struct* new_tensors = (tensors_struct*)malloc(sizeof(tensors_struct));
-    all_bytes += sizeof(tensors_struct);
     new_tensors->num_tensors = tensors->num_tensors;
     if (tensors->names == NULL) {
         new_tensors->names = NULL;
     } else {
         new_tensors->names = (char**)malloc(new_tensors->num_tensors * sizeof(char*));
-        all_bytes += new_tensors->num_tensors * sizeof(char*);
     }
     new_tensors->data_types = (tensor_data_type*)malloc(new_tensors->num_tensors * sizeof(tensor_data_type));
-    all_bytes += new_tensors->num_tensors * sizeof(tensor_data_type);
     new_tensors->ranks = (size_t*)malloc(new_tensors->num_tensors * sizeof(size_t));
-    all_bytes += new_tensors->num_tensors * sizeof(size_t);
     new_tensors->shapes = (size_t**)malloc(new_tensors->num_tensors * sizeof(size_t*));
-    all_bytes += new_tensors->num_tensors * sizeof(size_t*);
     new_tensors->data = (void**)malloc(new_tensors->num_tensors * sizeof(void*));
-    all_bytes += new_tensors->num_tensors * sizeof(void*);
 
     for (size_t i = 0; i < new_tensors->num_tensors; i++) {
         // Copy the names
         if (new_tensors->names != NULL) {
             new_tensors->names[i] = (char*)malloc(strlen(tensors->names[i]) + 1);
             strcpy(new_tensors->names[i], tensors->names[i]);
-            all_bytes += strlen(tensors->names[i]) + 1;
         }
         // Copy the data types
         new_tensors->data_types[i] = tensors->data_types[i];
@@ -260,7 +222,6 @@ tensors_struct* deep_copy_tensors_struct(tensors_struct* tensors) {
         new_tensors->ranks[i] = tensors->ranks[i];
         // Copy the shapes
         new_tensors->shapes[i] = (size_t*)malloc(new_tensors->ranks[i] * sizeof(size_t));
-        all_bytes += new_tensors->ranks[i] * sizeof(size_t);
         long size = 1;
         for (size_t j = 0; j < new_tensors->ranks[i]; j++) {
             new_tensors->shapes[i][j] = tensors->shapes[i][j];
@@ -269,10 +230,8 @@ tensors_struct* deep_copy_tensors_struct(tensors_struct* tensors) {
         // Copy the data
         long bytes = size * get_sizeof_onnx_type(new_tensors->data_types[i]);
         new_tensors->data[i] = (void*) malloc(bytes);
-        all_bytes += bytes;
         memcpy(new_tensors->data[i], tensors->data[i], bytes);
     }
-    printf("Deep copy of tensors_struct: %ld bytes\n", all_bytes);
 
     return new_tensors;
 }
