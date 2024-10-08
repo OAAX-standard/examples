@@ -70,16 +70,3 @@ tensors_struct *deep_copy_tensors_struct(tensors_struct *tensors);
  * @return Number of bytes
  */
 int64_t get_sizeof_onnx_type(int32_t datatype);
-
-/**
- * @brief Get a human-readable memory size from the byte count
- * @param [in] bytes Memory size in bytes
- * @return String representing human-readable memory size (e.g., KB, MB, GB)
- */
-const char *human_memory_size(uint64_t bytes);
-
-/**
- * @brief Print memory usage information for a given process or resource
- * @param [in] name Name of the resource/process being measured
- */
-void print_memory_usage(const char *name);
