@@ -25,7 +25,7 @@ target_include_directories(c_example PUBLIC ${TOOLS_PATH}/include)
 target_include_directories(c_example PUBLIC include)
 
 # link libs
-target_link_libraries(c_example PUBLIC pthread dl jpeg)
+target_link_libraries(c_example PUBLIC pthread dl jpeg m)
 
 # Copy files in the "artifacts" directory to the build directory
 file(COPY artifacts DESTINATION ${CMAKE_BINARY_DIR})

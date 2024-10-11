@@ -32,9 +32,10 @@ typedef struct tensors_struct {
 typedef struct Runtime {
     // Runtime interface functions
     int (*runtime_initialization)(); // Default initialization function
+    int (*runtime_initialization_with_args)(int length, const char **keys, const void **values);
     int (*runtime_model_loading)(const char *file_path);
-    int (*runtime_inference_execution)(tensors_struct *input_tensors, tensors_struct *output_tensors);
-    int (*runtime_inference_cleanup)();
+    int (*send_input)(tensors_struct *input_tensors);
+    int (*receive_output)(tensors_struct **output_tensors);
     int (*runtime_destruction)();
     const char *(*runtime_error_message)();
     const char *(*runtime_version)();
