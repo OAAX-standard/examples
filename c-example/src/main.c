@@ -94,14 +94,16 @@ void *receive_output_thread(void *arg) {
         }
         attempts = 0; // Reset attempts after a successful receive
 
-        // Process the output tensors if needed
-        // ...
+        // if last iteration print out the output
+        if (received_outputs == NUMBER_OF_INFERENCES - 1) {
+            print_tensors(output_tensors);
+        }
 
         // Free the output tensors
         free_tensors_struct(output_tensors);
         output_tensors = NULL;
         received_outputs++;
-        log_debug(logger, "Received output %d", received_outputs);
+        log_debug(logger, "<- Received output %d", received_outputs);
     }
 
     return NULL;
@@ -110,7 +112,12 @@ void *receive_output_thread(void *arg) {
 int main(int argc, char **argv) {
     // Utils
     Timer timer;
-    logger = create_logger("main.log", LOG_INFO, LOG_INFO);
+    // Create a logger that prints and saves logs to a file
+    logger = create_logger("main.log", LOG_DEBUG, LOG_DEBUG);
+    if (logger == NULL) {
+        printf("Failed to create logger.\n");
+        return 1;
+    }
     // Check command-line arguments
     if (argc != 4) {
         log_error(logger, "Usage: %s <library_path> <model_path> <image_path>", argv[0]);

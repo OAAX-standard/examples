@@ -139,13 +139,14 @@ void print_tensors(tensors_struct *tensors) {
         for (size_t j = 0; j < tensors->ranks[i]; j++) {
             size *= tensors->shapes[i][j];
         }
-        int size_to_print = size < 10 ? size : 10;
+        int size_to_print = size < 500 ? size : 500;
         for (size_t j = 0; j < size_to_print; j++) {
             printf("%f, ", data[j]);
             if(j % tensors->shapes[0][1] == 5)
                 printf("\n");
         }
     }
+    printf("\n");
 
 }
 
