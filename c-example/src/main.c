@@ -13,6 +13,7 @@
 #include <errno.h>
 
 // Number of inferences to perform
+// TODO: Adjust this as you see fit
 #define NUMBER_OF_INFERENCES 1000
 
 // Logger
@@ -77,6 +78,9 @@ void *receive_output_thread(void *arg) {
     tensors_struct *output_tensors = NULL;
     int received_outputs           = 0;
     int attempts                   = 0;
+    // Maximum number of consecutive failed attempts to receive output tensors before giving up
+    // This is useful in case the runtime is not able to provide output tensors for some reason
+    // TODO: Adjust this as you see fit
     const int MAX_ATTEMPTS         = 10;
 
     while (received_outputs < NUMBER_OF_INFERENCES) {
@@ -113,6 +117,8 @@ int main(int argc, char **argv) {
     // Utils
     Timer timer;
     // Create a logger that prints and saves logs to a file
+    // TODO: adjust the logger params: file name, file log level, and console log level
+    // See OAAX/examples/tools/c-utilities/include/logger.h for more details
     logger = create_logger("main.log", LOG_DEBUG, LOG_DEBUG);
     if (logger == NULL) {
         printf("Failed to create logger.\n");
@@ -140,6 +146,11 @@ int main(int argc, char **argv) {
            runtime->runtime_version());
 
     // Initialize the runtime with arguments
+    // These parameters are runtime-specific and may vary based on the runtime you are using
+    // They are compatible for the CPU runtime and they server as
+    // n_duplicates: Number of model duplicates that run asynchronously
+    // n_threads_per_duplicate: Number of threads per model duplicate
+    // TODO: Adjust these parameters as you see fit
     int n_duplicates           = 1;
     int n_threads_per_duplicate = 1;
     int return_code = runtime->runtime_initialization_with_args(
@@ -161,13 +172,17 @@ int main(int argc, char **argv) {
     }
 
     // Load the image
+    // TODO: Depending on the model inputs, you may need to change the image size, mean, std and the tensors struct
+    // Also, make sure to adapt the `resize_image` and `build_tensors_struct` function to your needs
     uint8_t *data = (uint8_t *)load_image(image_path, 320, 240, 127, 128, true);
     if (data == NULL) {
         log_error(logger, "Failed to load image.");
         destroy_runtime(runtime); // Clean up resources
         return 1;
     }
-
+    // Create the input tensors struct from the image
+    // TODO: Adjust the image size, mean, std and the tensors struct
+    // Also, make sure to adapt the `resize_image` and `build_tensors_struct` function to your needs
     original_input_tensors = build_tensors_struct(data, 240, 320, 3);
     if (original_input_tensors == NULL) {
         log_error(logger, "Failed to build input tensors.");
