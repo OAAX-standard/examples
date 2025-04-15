@@ -6,21 +6,20 @@ This example demonstrates the usage of the OAAX runtime library to load an optim
 
 This folder contains the source code of a C program that will load the runtime library, load the model, and run it on a
 sample image.
-The program will print the output of the model to the console. However, you can confirm the output by comparing it to
-the output of the Python example (which is printed and visualized).
+The program will print the output of the model to the console, along with some additional useful information.
 
 The `artifacts/` directory contains the following files:
 
-- `model.onnx`: the optimized ONNX model, which is a face locator model, ie. it will detect faces in an image.
-- `libRuntimeLibrary.so`: the runtime library shared object file.
+- `model.onnx`: the optimized ONNX model, which is a face locator model, ie. it detects faces in an image.
+- `libRuntimeLibrary.so`: the runtime library shared object file compatible for x86_64 Ubuntu 20+ machines.
 - `image.jpg`: an image that contains faces, which will be used as input to the model.
 
 > The source code is available in the `src/` directory.
 
 ## Requirements
 
-This example is expected to run on an Ubuntu 20.04 (or higher) machine with an X86_64 architecture (since the runtime
-library provided is built for X86_64).
+This example is expected to run on an Ubuntu 20.04 (or higher) machine with an x86_64 architecture (since the runtime
+library provided is built for x86_64).
 
 Also, make sure that libjpeg is installed on your machine. You can install it using the following command:
 
@@ -30,7 +29,9 @@ sudo apt-get install libjpeg-dev
 
 ## Getting started
 
-Assuming you have the required dependencies installed, you can build the example using the following commands:
+### Step by step process
+
+Assuming you have the required dependencies installed, you can **build** the example using the following commands:
 
 ```bash
 cd c-example
@@ -40,13 +41,21 @@ cmake ..
 make
 ```
 
-After building the example, you can run it using the following command (from the `build/` directory):
+After building the example, you can **run** it using the following command (from the `build/` directory):
 
 ```bash
 ./c_example ./artifacts/libRuntimeLibrary.so ./artifacts/model.onnx  ./artifacts/image.jpg
 ```
 
 The program will print the output of the model to the console, along with some additional information.
+
+### All in one
+
+If you want to run the example in one command, you can use the following command:
+
+```bash
+bash build-run.sh
+```
 
 ## Indepth explanation
 
@@ -57,7 +66,7 @@ it on the input image. The script expects three arguments:
 - The path to the optimized model.
 - The path to the input image.
 
-For the sake of example, we've included a sample runtime library, runtime and image in the `artifacts/` directory.
+For the sake of example, we've included a sample model, runtime and image in the `artifacts/` directory.
 You can replace it with your own files according to the
 guidelines [below](#adapting-the-example-to-your-own-runtime---model---image-combination).
 
@@ -92,7 +101,7 @@ void *load_image(const char *image_path, int new_width, int new_height, float me
  * @param [in] channels Number of channels in the image
  * @param [out] tensors Pointer to the tensors struct
  */
-void build_tensors_struct(uint8_t *data, size_t height, size_t width, size_t channels, tensors_struct *tensors);
+tensors_struct *build_tensors_struct(uint8_t *data, size_t height, size_t width, size_t channels);
 ```
 
 These two functions are called in the `main.c` file to preprocess the input image and build the input tensors, as shown
@@ -115,5 +124,5 @@ When using your own runtime library, optimized model, and/or input image, make s
 - The `main.c` file is updated to build the input tensor according to the model's input tensors format. You can find a
   TODO
   comment in the `main.c` file, which indicates where you should update the code.
-- You may need to remove/update the last line in the `CMakeLists.txt` file, since it copies the `artifacts/` directory
+- You might need to remove/update the last line in the `CMakeLists.txt` file, since it copies the `artifacts/` directory
   to the build directory.
