@@ -106,6 +106,9 @@ void *receive_output_thread(void *arg)
 
 int main(int argc, char **argv)
 {
+    printf(">>> main() function entered (before any other code)\n");
+    MessageBoxA(NULL, "main() function entered", "Debug", MB_OK);
+    printf("C example: Sending inputs and receiving outputs in separate threads.\n");
     // Utils
     Timer timer;
     // Create a logger that prints and saves logs to a file

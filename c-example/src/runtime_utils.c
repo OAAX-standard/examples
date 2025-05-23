@@ -74,67 +74,67 @@ Runtime *initialize_runtime(const char *library_path)
     if (runtime->_handle == NULL)
     {
         destroy_runtime(runtime);
-        printf("Failed to load library: %s\n", dlerror());
+        printf("Failed to load library.\n");
         return NULL;
     }
 
     runtime->runtime_initialization = get_symbol_address(runtime->_handle, "runtime_initialization");
     if (runtime->runtime_initialization == NULL)
     {
-        printf("`runtime_initialization` not implemented: %s.\n", dlerror());
+        printf("`runtime_initialization` not implemented.\n");
     }
     runtime->runtime_initialization_with_args = get_symbol_address(runtime->_handle, "runtime_initialization_with_args");
     if (runtime->runtime_initialization_with_args == NULL)
     {
-        printf("`runtime_initialization_with_args` not implemented: %s.\n", dlerror());
+        printf("`runtime_initialization_with_args` not implemented.\n");
     }
     runtime->runtime_model_loading = get_symbol_address(runtime->_handle, "runtime_model_loading");
     if (runtime->runtime_model_loading == NULL)
     {
         destroy_runtime(runtime);
-        printf("Failed to load `runtime_model_loading` function: %s.\n", dlerror());
+        printf("Failed to load `runtime_model_loading` function.\n");
         return NULL;
     }
     runtime->send_input = get_symbol_address(runtime->_handle, "send_input");
     if (runtime->send_input == NULL)
     {
         destroy_runtime(runtime);
-        printf("Failed to load `send_input` function: %s.\n", dlerror());
+        printf("Failed to load `send_input` function.\n");
         return NULL;
     }
     runtime->receive_output = get_symbol_address(runtime->_handle, "receive_output");
     if (runtime->receive_output == NULL)
     {
         destroy_runtime(runtime);
-        printf("Failed to load `receive_output` function: %s.\n", dlerror());
+        printf("Failed to load `receive_output` function.\n");
         return NULL;
     }
     runtime->runtime_destruction = get_symbol_address(runtime->_handle, "runtime_destruction");
     if (runtime->runtime_destruction == NULL)
     {
         destroy_runtime(runtime);
-        printf("Failed to load `runtime_destruction` function: %s.\n", dlerror());
+        printf("Failed to load `runtime_destruction` function.\n");
         return NULL;
     }
     runtime->runtime_error_message = get_symbol_address(runtime->_handle, "runtime_error_message");
     if (runtime->runtime_error_message == NULL)
     {
         destroy_runtime(runtime);
-        printf("Failed to load `runtime_error_message` function: %s.\n", dlerror());
+        printf("Failed to load `runtime_error_message` function.\n");
         return NULL;
     }
     runtime->runtime_version = get_symbol_address(runtime->_handle, "runtime_version");
     if (runtime->runtime_version == NULL)
     {
         destroy_runtime(runtime);
-        printf("Failed to load `runtime_version` function: %s.\n", dlerror());
+        printf("Failed to load `runtime_version` function.\n");
         return NULL;
     }
     runtime->runtime_name = get_symbol_address(runtime->_handle, "runtime_name");
     if (runtime->runtime_name == NULL)
     {
         destroy_runtime(runtime);
-        printf("Failed to load `runtime_name` function: %s.\n", dlerror());
+        printf("Failed to load `runtime_name` function.\n");
         return NULL;
     }
 
