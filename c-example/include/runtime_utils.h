@@ -3,33 +3,17 @@
 
 #include <stddef.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stddef.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <jpeglib.h>
 
-typedef enum tensor_data_type {
-    DATA_TYPE_FLOAT = 1,
-    DATA_TYPE_UINT8 = 2,
-    DATA_TYPE_INT8 = 3,
-    DATA_TYPE_UINT16 = 4,
-    DATA_TYPE_INT16 = 5,
-    DATA_TYPE_INT32 = 6,
-    DATA_TYPE_INT64 = 7,
-    DATA_TYPE_STRING = 8,
-    DATA_TYPE_BOOL = 9,
-    DATA_TYPE_DOUBLE = 11,
-    DATA_TYPE_UINT32 = 12,
-    DATA_TYPE_UINT64 = 13
-} tensor_data_type;
+#include "tensors_struct.h"
 
-typedef struct tensors_struct {
-    size_t num_tensors;                 // Number of tensors
-    char **names;                       // Names of the tensors
-    tensor_data_type *data_types;       // Data types of the tensors
-    size_t *ranks;                      // Ranks of the tensors
-    size_t **shapes;                    // Shapes of the tensors
-    void **data;                        // Data of the tensors
-} tensors_struct;
-
-typedef struct Runtime {
+typedef struct Runtime
+{
     // Runtime interface functions
     int (*runtime_initialization)(); // Default initialization function
     int (*runtime_initialization_with_args)(int length, const char **keys, const void **values);
@@ -49,5 +33,45 @@ typedef struct Runtime {
 // Function prototypes
 Runtime *initialize_runtime(const char *library_path);
 void destroy_runtime(Runtime *runtime_env);
+
+/**
+ * @brief Resize the image using nearest neighbor interpolation
+ * @param [in] image Input image
+ * @param [in] width Image width
+ * @param [in] height Image height
+ * @param [in] new_width New image width
+ * @param [in] new_height New image height
+ * @param [out] resized_image Pointer to the resized image in float format
+ */
+void resize_image(const unsigned char *image,
+                  int width,
+                  int height,
+                  int new_width,
+                  int new_height,
+                  float *resized_image);
+
+/**
+ * @brief Load the image from the file path, resize it, normalize it and convert it to float.
+ * @param [in] image_path Path to the image file
+ * @param [in] new_width Desired width of the image
+ * @param [in] new_height Desired height of the image
+ * @param [in] mean Float value to subtract from the image pixel values
+ * @param [in] std Float value to divide the image pixel values (after mean subtraction)
+ * @param [in] nchw Boolean flag to indicate if the image should be in NCHW or NHWC format
+ * @return Pointer to the resized image in float format
+ */
+void *load_image(const char *image_path, int new_width, int new_height, float mean, float std, bool nchw);
+
+/**
+ * @brief Build the tensors struct from the input data
+ * @param [in] data Pointer to the preprocessed image data
+ * @param [in] height Preprocessed image height
+ * @param [in] width Preprocessed image width
+ * @param [in] channels Number of channels in the image
+ *
+ * @return Pointer to the tensors struct
+ */
+tensors_struct * build_tensors_struct(uint8_t *data, size_t height, size_t width, size_t channels);
+
 
 #endif // INTERFACE_H

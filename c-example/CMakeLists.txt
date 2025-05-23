@@ -6,26 +6,27 @@ project(c_example)
 add_definitions(-D_GNU_SOURCE)
 
 # 
-set(TOOLS_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../tools/c-utilities)
+set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
+set(DEPS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/deps)
+set(TOOLS_C_UTILITIES_DIR ${DEPS_DIR}/tools/c-utilities)
+set(TOOLS_C_UTILITIES_INCLUDE_DIR ${DEPS_DIR}/tools/c-utilities/include)
 
-# Cross-compilation settings
-#set(CROSS_NAME "X86_64")
-#set(CROSS_ROOT "/opt/x86_64-unknown-linux-gnu-gcc-9.5.0")
-#set(COMPILER_PREFIX "x86_64-unknown-linux-gnu-")
-#set(CMAKE_C_COMPILER ${CROSS_ROOT}/bin/${COMPILER_PREFIX}gcc)
-#set(CMAKE_CXX_COMPILER ${CROSS_ROOT}/bin/${COMPILER_PREFIX}g++)
-#set(CMAKE_LINKER ${CROSS_ROOT}/bin/${COMPILER_PREFIX}ld)
+# Link C Utilities project
+add_subdirectory(${TOOLS_C_UTILITIES_DIR} ${CMAKE_CURRENT_BINARY_DIR}/c_utilities)
 
 # Include directories
-file(GLOB UTIL_FILES ${TOOLS_PATH}/src/*)
-add_executable(c_example src/main.c src/runtime_utils.c src/utils.c ${UTIL_FILES})
+add_executable(c_example src/main.c src/runtime_utils.c)
 
 # include headers
-target_include_directories(c_example PUBLIC ${TOOLS_PATH}/include)
-target_include_directories(c_example PUBLIC include)
+  
+target_include_directories(c_example PUBLIC "include" "${TOOLS_C_UTILITIES_INCLUDE_DIR}")
 
 # link libs
-target_link_libraries(c_example PUBLIC pthread dl jpeg m)
+target_link_libraries(c_example PUBLIC 
+    -Wl,--start-group 
+    pthread dl jpeg m c_utilities 
+    -Wl,--end-group
+)
 
 # Copy files in the "artifacts" directory to the build directory
 file(COPY artifacts DESTINATION ${CMAKE_BINARY_DIR})
