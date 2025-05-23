@@ -1,13 +1,14 @@
 // Description: This is an example of a C program that uses the OAAX runtime to send inputs and receive outputs in separate threads.
 #include "runtime_utils.h"
-#include "utils.h"
-// tools
+
+// C utilities
 #include "timer.h"
 #include "memory.h"
 #include "logger.h"
 #include "utils.h"
+#include "threading.h"
 
-#include <pthread.h>
+// Standard libraries
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -190,8 +191,9 @@ int main(int argc, char **argv)
         return 1;
     }
     // Start sending inputs and receiving outputs
-    pthread_t send_input_thread_id, receive_output_thread_id;
-    if (pthread_create(&send_input_thread_id, NULL, send_input_thread, runtime) != 0)
+    ThreadHandle send_input_thread_handle, receive_output_thread_handle;
+
+    if (thread_create(&send_input_thread_handle, send_input_thread, runtime) != 0)
     {
         log_error(logger, "Failed to create send_input_thread.");
         deep_free_tensors_struct(original_input_tensors);
@@ -199,10 +201,9 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    if (pthread_create(&receive_output_thread_id, NULL, receive_output_thread, runtime) != 0)
+    if (thread_create(&receive_output_thread_handle, receive_output_thread, runtime) != 0)
     {
         log_error(logger, "Failed to create receive_output_thread.");
-        pthread_cancel(send_input_thread_id); // Cancel the send thread
         deep_free_tensors_struct(original_input_tensors);
         destroy_runtime(runtime);
         return 1;
@@ -211,8 +212,8 @@ int main(int argc, char **argv)
     // Wait for threads to complete
     // record current timestamp
     start_recording(&timer);
-    pthread_join(send_input_thread_id, NULL);
-    pthread_join(receive_output_thread_id, NULL);
+    thread_join(&send_input_thread_handle);
+    thread_join(&receive_output_thread_handle);
     stop_recording(&timer);
 
     // Clean up
