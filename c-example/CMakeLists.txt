@@ -28,6 +28,8 @@ if(WIN32)
     # add the JPEG library
     target_include_directories(c_example PUBLIC "${JPEG_DIR}/include")
     target_link_directories(c_example PUBLIC "${JPEG_DIR}/lib")
+    # Copy jpeg62.dll to the build directory
+    file(COPY "${JPEG_DIR}/bin/jpeg62.dll" DESTINATION ${CMAKE_BINARY_DIR})
     # Link the required libraries
     target_link_libraries(c_example PUBLIC jpeg c_utilities ws2_32)
 else()
