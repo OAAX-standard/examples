@@ -11,7 +11,7 @@
 
 #ifdef _WIN32
 #include <windows.h>
-#define DL_ERROR GetLastError
+#define DL_ERROR GetLastError()
 #else
 #include <dlfcn.h>
 #define DL_ERROR dlerror()
@@ -61,7 +61,7 @@ void destroy_runtime(Runtime *runtime)
 
 Runtime *initialize_runtime(const char *library_path)
 {
-    Runtime *runtime = (Runtime *)malloc(sizeof(Runtime));
+    Runtime *runtime = (Runtime *) calloc(1, sizeof(Runtime));
     if (runtime == NULL)
     {
         log_error(logger, "Failed to allocate memory for Runtime.\n");
@@ -85,13 +85,13 @@ Runtime *initialize_runtime(const char *library_path)
 
     // Load the shared library
     runtime->_handle = load_dynamic_library(library_path);
-    log_debug(logger, "Loaded library handle: %p\n", runtime->_handle);
     if (runtime->_handle == NULL)
     {
         destroy_runtime(runtime);
         log_error(logger, "Failed to load library: %s\n", DL_ERROR);
         return NULL;
     }
+    log_debug(logger, "Loaded library handle: %p\n", runtime->_handle);
 
     runtime->runtime_initialization = get_symbol_address(runtime->_handle, "runtime_initialization");
     if (runtime->runtime_initialization == NULL)
