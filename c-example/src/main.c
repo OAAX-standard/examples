@@ -92,6 +92,23 @@ void *receive_output_thread(void *arg)
         if (received_outputs == NUMBER_OF_INFERENCES - 1)
         {
             print_tensors_metadata(output_tensors);
+            // Print tensors data
+            log_info(logger, "Output tensors data:");
+            for (int64_t i = 0; i < output_tensors->num_tensors; i++)
+            {
+                log_info(logger, "Tensor %zu:", i);
+                int64_t size = output_tensors->shapes[i][0] * output_tensors->shapes[i][1];
+                log_info(logger, "Tensor %zu size: %lld", i, size);
+                for (int64_t j = 0; j < size; j++)
+                {
+                    // Print the first 10 elements of the tensor data
+                    printf("%f ", ((float *)output_tensors->data[i])[j]);
+                    if (j % 6 == 5) // Print a new line every 6 elements
+                    {
+                        printf("\n");
+                    }
+                }
+            }
         }
 
         // Free the output tensors
@@ -106,9 +123,6 @@ void *receive_output_thread(void *arg)
 
 int main(int argc, char **argv)
 {
-    printf(">>> main() function entered (before any other code)\n");
-    MessageBoxA(NULL, "main() function entered", "Debug", MB_OK);
-    printf("C example: Sending inputs and receiving outputs in separate threads.\n");
     // Utils
     Timer timer;
     // Create a logger that prints and saves logs to a file
@@ -130,6 +144,9 @@ int main(int argc, char **argv)
     char *library_path = argv[1];
     char *model_path = argv[2];
     char *image_path = argv[3];
+    log_info(logger, "Library path: %s", library_path);
+    log_info(logger, "Model path: %s", model_path);
+    log_info(logger, "Image path: %s", image_path);
 
     // Initialize the runtime environment
     Runtime *runtime = initialize_runtime(library_path);
@@ -151,7 +168,7 @@ int main(int argc, char **argv)
     // TODO: Adjust these parameters as you see fit
     int n_duplicates = 1;
     int n_threads_per_duplicate = 1;
-    int runtime_log_level = 0;
+    int runtime_log_level = 3;
     int return_code = runtime->runtime_initialization_with_args(
         3,
         (const char *[]){"n_duplicates", "n_threads_per_duplicate", "runtime_log_level"},
@@ -193,6 +210,7 @@ int main(int argc, char **argv)
         destroy_runtime(runtime); // Clean up resources
         return 1;
     }
+    log_info(logger, "Input tensors created with %zu tensors.", original_input_tensors->num_tensors);
     // Start sending inputs and receiving outputs
     ThreadHandle send_input_thread_handle, receive_output_thread_handle;
 
@@ -211,6 +229,7 @@ int main(int argc, char **argv)
         destroy_runtime(runtime);
         return 1;
     }
+    log_info(logger, "Threads created successfully. Starting inference...");
 
     // Wait for threads to complete
     // record current timestamp
@@ -220,6 +239,7 @@ int main(int argc, char **argv)
     stop_recording(&timer);
 
     // Clean up
+    log_info(logger, "Inference completed. Cleaning up resources...");
     deep_free_tensors_struct(original_input_tensors);
     original_input_tensors = NULL;
 
