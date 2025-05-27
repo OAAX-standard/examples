@@ -1,0 +1,46 @@
+name: Check C/C++ Code Style
+
+on:
+  push:
+
+jobs:
+  run-cpp-linter:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Install cpplint
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cpplint
+
+      - name: Run linter
+        run: |
+          find ./c-example/src -regex '.*\.\(cpp\|cc\|c\|h\|hpp\)' -exec cpplint --filter=-readability/casting {} +
+          find ./c-example/include -regex '.*\.\(cpp\|cc\|c\|h\|hpp\)' -exec cpplint --filter=-readability/casting {} +
+    
+  run-clang-format:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Install Clang Format
+        run: |
+          sudo apt update -y
+          sudo apt install wget lsb-release software-properties-common gnupg -y
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          ./llvm.sh 19
+          sudo apt install clang-format-19 -y
+          sudo ln -s /usr/bin/clang-format-19 /usr/bin/clang-format
+
+      - name: Run clang-format
+        run: |
+          find ./c-example/src -iname '*.h' -o -iname '*.cpp' | xargs clang-format -style=file:.clang-format --dry-run --Werror
+          find ./c-example/include -iname '*.h' -o -iname '*.cpp' | xargs clang-format -style=file:.clang-format --dry-run --Werror
