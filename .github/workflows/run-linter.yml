@@ -36,7 +36,7 @@ jobs:
           sudo apt install wget lsb-release software-properties-common gnupg -y
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          ./llvm.sh 19
+          sudo ./llvm.sh 19
           sudo apt install clang-format-19 -y
           sudo ln -s /usr/bin/clang-format-19 /usr/bin/clang-format
 

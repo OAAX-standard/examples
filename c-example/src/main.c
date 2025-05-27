@@ -1,13 +1,8 @@
+// Copyright (c) OAAX. All rights reserved.
+// Licensed under the Apache License, Version 2.0.
+
 // Description: This is an example of a C program that uses the OAAX runtime to
 // send inputs and receive outputs in separate threads.
-#include "runtime_utils.h"
-
-// C utilities
-#include "logger.h"
-#include "memory.h"
-#include "threading.h"
-#include "timer.h"
-#include "utils.h"
 
 // Standard libraries
 #include <errno.h>
@@ -15,8 +10,17 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "runtime_utils.h"  // NOLINT[build/include]
+
+// C utilities
+#include "logger.h"     // NOLINT[build/include]
+#include "memory.h"     // NOLINT[build/include]
+#include "threading.h"  // NOLINT[build/include]
+#include "timer.h"      // NOLINT[build/include]
+#include "utils.h"      // NOLINT[build/include]
+
 // Number of inferences to perform
-// TODO: Adjust this as you see fit
+// NOTE: Adjust this as you see fit
 #define NUMBER_OF_INFERENCES 10
 
 // Logger
@@ -65,7 +69,7 @@ void *receive_output_thread(void *arg) {
   // Maximum number of consecutive failed attempts to receive output tensors
   // before giving up This is useful in case the runtime is not able to provide
   // output tensors for some reason
-  // TODO: Adjust this as you see fit
+  // NOTE: Adjust this as you see fit
   const int MAX_ATTEMPTS = 10;
 
   while (received_outputs < NUMBER_OF_INFERENCES) {
@@ -98,8 +102,7 @@ void *receive_output_thread(void *arg) {
         for (int64_t j = 0; j < size; j++) {
           // Print the first 10 elements of the tensor data
           printf("%f ", ((float *)output_tensors->data[i])[j]);
-          if (j % 6 == 5)  // Print a new line every 6 elements
-          {
+          if (j % 6 == 5) {  // Print a new line every 6 elements
             printf("\n");
           }
         }
@@ -120,7 +123,7 @@ int main(int argc, char **argv) {
   // Utils
   Timer timer;
   // Create a logger that prints and saves logs to a file
-  // TODO: adjust the logger params: file name, file log level, and console log
+  // NOTE: adjust the logger params: file name, file log level, and console log
   // level See OAAX/examples/tools/c-utilities/include/logger.h for more details
   logger = create_logger("C example", "main.log", LOG_DEBUG, LOG_DEBUG);
   if (logger == NULL) {
@@ -156,7 +159,7 @@ int main(int argc, char **argv) {
   // are using They are compatible for the CPU runtime and they server as
   // n_duplicates: Number of model duplicates that run asynchronously
   // n_threads_per_duplicate: Number of threads per model duplicate
-  // TODO: Adjust these parameters as you see fit
+  // NOTE: Adjust these parameters as you see fit
   int n_duplicates = 1;
   int n_threads_per_duplicate = 1;
   int runtime_log_level = 3;
@@ -181,7 +184,7 @@ int main(int argc, char **argv) {
   }
 
   // Load the image
-  // TODO: Depending on the model inputs, you may need to change the image size,
+  // NOTE: Depending on the model inputs, you may need to change the image size,
   // mean, std and the tensors struct Also, make sure to adapt the
   // `resize_image` and `build_tensors_struct` function to your needs
   uint8_t *data = (uint8_t *)load_image(image_path, 320, 240, 127, 128, true);
@@ -191,7 +194,7 @@ int main(int argc, char **argv) {
     return 1;
   }
   // Create the input tensors struct from the image
-  // TODO: Adjust the image size, mean, std and the tensors struct
+  // NOTE: Adjust the image size, mean, std and the tensors struct
   // Also, make sure to adapt the `resize_image` and `build_tensors_struct`
   // function to your needs
   original_input_tensors = build_tensors_struct(data, 240, 320, 3);
