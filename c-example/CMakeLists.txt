@@ -35,7 +35,7 @@ if(WIN32)
 else()
     target_link_libraries(c_example PUBLIC 
         -Wl,--start-group 
-        pthread dl jpeg m c_utilities 
+        pthread dl jpeg m c_utilities
         -Wl,--end-group
     )
 endif()

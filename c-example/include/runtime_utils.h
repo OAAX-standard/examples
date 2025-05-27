@@ -4,12 +4,14 @@
 #ifndef C_EXAMPLE_INCLUDE_RUNTIME_UTILS_H_
 #define C_EXAMPLE_INCLUDE_RUNTIME_UTILS_H_
 
-#include <jpeglib.h>
+// clang-format off
+#include <stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <stdlib.h>
+#include <jpeglib.h>  // Jpeglib should always be included after stdio.h
+// clang-format on
 
 #include "tensors_struct.h"  // NOLINT[build/include]
 
