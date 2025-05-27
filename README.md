@@ -1,8 +1,10 @@
 # Examples
 
+[![Check C/C++ Code Style](https://github.com/OAAX-standard/examples/actions/workflows/run-linter.yml/badge.svg)](https://github.com/OAAX-standard/examples/actions/workflows/run-linter.yml)
+[![Run tests](https://github.com/OAAX-standard/examples/actions/workflows/run-tests.yml/badge.svg)](https://github.com/OAAX-standard/examples/actions/workflows/run-tests.yml)
+
 This repository is dedicated to providing examples of how to use the OAAX runtime and conversion toolchain.
-The examples are provided is self-contained folders, each containing a README file that explains how to build and run
-the example.
+The examples are provided is self-contained folders, each containing a README file that explains how to build and run the example.
 
 Please note that examples can be used with any OAAX-compliant runtime. Hence, to run a model on different AI
 accelerator, you need to compile the ONNX model using the right conversion toolchain and replace the runtime library with the one that is compatible with the accelerator.
