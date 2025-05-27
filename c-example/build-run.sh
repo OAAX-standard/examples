@@ -6,4 +6,15 @@ mkdir build || true
 cd build
 cmake ..
 make -j
-./c_example ./artifacts/libRuntimeLibrary.so ./artifacts/model.onnx ./artifacts/image.jpg
+
+# Choose the appropriate library based on the architecture
+if [[ "$(uname -m)" == "x86_64" ]]; then
+    runtime_library="./artifacts/libRuntimeLibrary_x86_64.so"
+elif [[ "$(uname -m)" == "aarch64" ]]; then
+    runtime_library="./artifacts/libRuntimeLibrary_aarch64.so"
+else
+    echo "Unsupported architecture: $(uname -m)"
+    exit 1
+fi
+
+./c_example "$runtime_library" "./artifacts/model.onnx" "./artifacts/image.jpg"
