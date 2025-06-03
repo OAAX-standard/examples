@@ -5,6 +5,7 @@
 // send inputs and receive outputs in separate threads.
 
 // Standard libraries
+#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,15 +20,21 @@
 #include "timer.h"      // NOLINT[build/include]
 #include "utils.h"      // NOLINT[build/include]
 
+// Prototypes for utility functions
+int is_numeric(const char *str);
+
 // Number of inferences to perform
 // NOTE: Adjust this as you see fit
-#define NUMBER_OF_INFERENCES 10
+#define NUMBER_OF_INFERENCES 3
+#define MAX_INPUTS_IN_PIPELINE 5
 
 // Logger
 Logger *logger = NULL;
 
 // Global variable to hold the original input tensors
 tensors_struct *original_input_tensors = NULL;
+// Number of outputs received from the runtime
+static int received_outputs = 0;
 
 // Thread function for sending inputs
 void *send_input_thread(void *arg) {
@@ -35,6 +42,12 @@ void *send_input_thread(void *arg) {
   int code = 0;
 
   for (int i = 0; i < NUMBER_OF_INFERENCES; i++) {
+    // Wait until the number of input tensors in the pipeline is less than the
+    // maximum allowed in the pipeline
+    while ((i - received_outputs) >= MAX_INPUTS_IN_PIPELINE) {
+      log_debug(logger, "Waiting for space in the input pipeline...");
+      sleep_ms(5);  // Sleep for a short duration before checking again
+    }
     // Deep copy the input tensors
     tensors_struct *input_tensors =
         deep_copy_tensors_struct(original_input_tensors);
@@ -64,30 +77,15 @@ void *send_input_thread(void *arg) {
 void *receive_output_thread(void *arg) {
   Runtime *runtime = (Runtime *)arg;
   tensors_struct *output_tensors = NULL;
-  int received_outputs = 0;
-  int attempts = 0;
-  // Maximum number of consecutive failed attempts to receive output tensors
-  // before giving up This is useful in case the runtime is not able to provide
-  // output tensors for some reason
-  // NOTE: Adjust this as you see fit
-  const int MAX_ATTEMPTS = 10;
+  received_outputs = 0;  // Reset the received outputs counter
 
   while (received_outputs < NUMBER_OF_INFERENCES) {
     // Receive the output tensors
     int code = runtime->receive_output(&output_tensors);
     if (code != 0) {
-      log_warning(logger, "No more output tensors available. Attempt %d",
-                  attempts + 1);
-      attempts++;
-      if (attempts >= MAX_ATTEMPTS) {
-        log_error(logger,
-                  "Exceeded maximum attempts to receive output tensors.");
-        break;
-      }
       sleep_ms(100);  // Wait before retrying
       continue;
     }
-    attempts = 0;  // Reset attempts after a successful receive
 
     // if last iteration print out the output
     if (received_outputs == NUMBER_OF_INFERENCES - 1) {
@@ -131,8 +129,10 @@ int main(int argc, char **argv) {
     return 1;
   }
   // Check command-line arguments
-  if (argc != 4) {
-    log_error(logger, "Usage: %s <library_path> <model_path> <image_path>",
+  if (argc < 4) {
+    log_error(logger,
+              "Usage: %s <library_path> <model_path> <image_path> "
+              "[key1 value1 key2 value2 ...]",
               argv[0]);
     return 1;
   }
@@ -156,19 +156,46 @@ int main(int argc, char **argv) {
 
   // Initialize the runtime with arguments
   // These parameters are runtime-specific and may vary based on the runtime you
-  // are using They are compatible for the CPU runtime and they server as
-  // n_duplicates: Number of model duplicates that run asynchronously
-  // n_threads_per_duplicate: Number of threads per model duplicate
-  // NOTE: Adjust these parameters as you see fit
-  int n_duplicates = 1;
-  int n_threads_per_duplicate = 1;
-  int runtime_log_level = 3;
+  // are using.
+  // Parse additional runtime initialization arguments from command line
+  // Usage: <library_path> <model_path> <image_path> [key1 value1 key2 value2
+  // ...]
+  int num_extra_args = argc - 4;
+  int num_pairs = num_extra_args / 2;
+  const char **arg_keys = NULL;
+  const void **arg_values = NULL;
+  int *int_values = NULL;  // To hold integer values if needed
+
+  if (num_pairs > 0) {
+    arg_keys = (const char **)malloc(num_pairs * sizeof(char *));
+    arg_values = (const void **)malloc(num_pairs * sizeof(void *));
+    int_values = (int *)malloc(num_pairs * sizeof(int));
+    if (!arg_keys || !arg_values || !int_values) {
+      log_error(logger, "Memory allocation failed for runtime args.");
+      destroy_runtime(runtime);
+      return 1;
+    }
+    for (int i = 0; i < num_pairs; i++) {
+      int id = 4 + i * 2;  // Starting index for key-value pairs
+      arg_keys[i] = argv[id];
+      // Check if the argument is numeric
+      if (is_numeric(argv[id + 1])) {
+        int_values[i] = atoi(argv[id + 1]);
+        arg_values[i] = &int_values[i];
+      } else {
+        // If not numeric, treat it as a string
+        arg_values[i] = argv[id + 1];
+      }
+    }
+  } else {
+    // Pass empty arrays if no extra arguments are provided
+    log_info(logger, "No extra arguments provided for runtime initialization.");
+    num_pairs = 0;
+    arg_keys = NULL;
+    arg_values = NULL;
+  }
   int return_code = runtime->runtime_initialization_with_args(
-      3,
-      (const char *[]){"n_duplicates", "n_threads_per_duplicate",
-                       "runtime_log_level"},
-      (const void *[]){&n_duplicates, &n_threads_per_duplicate,
-                       &runtime_log_level});
+      num_pairs, arg_keys, arg_values);
 
   if (return_code != 0) {
     log_error(logger, "Failed to initialize runtime environment.");
@@ -238,6 +265,13 @@ int main(int argc, char **argv) {
   deep_free_tensors_struct(original_input_tensors);
   original_input_tensors = NULL;
 
+  // Free allocated memory if used
+  if (argc > 4) {
+    free(arg_keys);
+    free(arg_values);
+    free(int_values);
+  }
+
   destroy_runtime(runtime);
 
   // Optional: Print run stats
@@ -245,4 +279,18 @@ int main(int argc, char **argv) {
   print_human_readable_stats(&timer, NUMBER_OF_INFERENCES);
 
   return 0;
+}
+
+int is_numeric(const char *str) {
+  if (str == NULL || *str == '\0') {
+    return 0;  // Empty or NULL string is not numeric
+  }
+
+  while (*str) {
+    if (!isdigit((unsigned char)*str)) {
+      return 0;  // Non-digit character found
+    }
+    str++;
+  }
+  return 1;  // All characters are digits
 }

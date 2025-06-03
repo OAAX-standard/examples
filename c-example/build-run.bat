@@ -34,4 +34,4 @@ if not exist c_example.exe (
 
 REM Run the executable with arguments
 echo Running c_example.exe...
-.\c_example.exe .\artifacts\RuntimeLibrary_x86_64.dll .\artifacts\model.onnx .\artifacts\image.jpg
+.\c_example.exe .\artifacts\RuntimeLibrary_x86_64.dll .\artifacts\model.onnx .\artifacts\image.jpg "n_duplicates" "2" "n_threads_per_duplicate" "2" "runtime_log_level" "1"
