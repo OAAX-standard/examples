@@ -32,6 +32,6 @@ if not exist c_example.exe (
     exit /b 1
 )
 
-REM Run the executable with arguments
+REM Run the executabl de with arguments
 echo Running c_example.exe...
-.\c_example.exe .\artifacts\RuntimeLibrary_x86_64.dll .\artifacts\model.onnx .\artifacts\image.jpg "n_duplicates" "2" "n_threads_per_duplicate" "2" "runtime_log_level" "1"
+.\c_example.exe .\artifacts\RuntimeLibrary_x86_64.dll .\artifacts\model.onnx .\artifacts\image.jpg 10 "n_duplicates" "2" "n_threads_per_duplicate" "2" "runtime_log_level" "1"

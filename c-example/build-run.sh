@@ -17,7 +17,7 @@ else
     exit 1
 fi
 
-./c_example "$runtime_library" "./artifacts/model.onnx" "./artifacts/image.jpg" \
+./c_example "$runtime_library" "./artifacts/model.onnx" "./artifacts/image.jpg" 10 \
     "n_duplicates" "2" \
     "n_threads_per_duplicate" "2" \
     "runtime_log_level" "1"

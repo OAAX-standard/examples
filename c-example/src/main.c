@@ -23,9 +23,7 @@
 // Prototypes for utility functions
 int is_numeric(const char *str);
 
-// Number of inferences to perform
-// NOTE: Adjust this as you see fit
-#define NUMBER_OF_INFERENCES 3
+// Maximum number of inputs in the pipeline
 #define MAX_INPUTS_IN_PIPELINE 5
 
 // Logger
@@ -35,13 +33,14 @@ Logger *logger = NULL;
 tensors_struct *original_input_tensors = NULL;
 // Number of outputs received from the runtime
 static int received_outputs = 0;
+static int number_of_inferences;
 
 // Thread function for sending inputs
 void *send_input_thread(void *arg) {
   Runtime *runtime = (Runtime *)arg;
   int code = 0;
 
-  for (int i = 0; i < NUMBER_OF_INFERENCES; i++) {
+  for (int i = 0; i < number_of_inferences; i++) {
     // Wait until the number of input tensors in the pipeline is less than the
     // maximum allowed in the pipeline
     while ((i - received_outputs) >= MAX_INPUTS_IN_PIPELINE) {
@@ -79,7 +78,7 @@ void *receive_output_thread(void *arg) {
   tensors_struct *output_tensors = NULL;
   received_outputs = 0;  // Reset the received outputs counter
 
-  while (received_outputs < NUMBER_OF_INFERENCES) {
+  while (received_outputs < number_of_inferences) {
     // Receive the output tensors
     int code = runtime->receive_output(&output_tensors);
     if (code != 0) {
@@ -88,7 +87,7 @@ void *receive_output_thread(void *arg) {
     }
 
     // if last iteration print out the output
-    if (received_outputs == NUMBER_OF_INFERENCES - 1) {
+    if (received_outputs == number_of_inferences - 1) {
       print_tensors_metadata(output_tensors);
       // Print tensors data
       log_info(logger, "Output tensors data:");
@@ -132,6 +131,7 @@ int main(int argc, char **argv) {
   if (argc < 4) {
     log_error(logger,
               "Usage: %s <library_path> <model_path> <image_path> "
+              "<number_of_inferences>"
               "[key1 value1 key2 value2 ...]",
               argv[0]);
     return 1;
@@ -140,9 +140,11 @@ int main(int argc, char **argv) {
   char *library_path = argv[1];
   char *model_path = argv[2];
   char *image_path = argv[3];
+  number_of_inferences = atoi(argv[4]);
   log_info(logger, "Library path: %s", library_path);
   log_info(logger, "Model path: %s", model_path);
   log_info(logger, "Image path: %s", image_path);
+  log_info(logger, "Number of inferences: %d", number_of_inferences);
 
   // Initialize the runtime environment
   Runtime *runtime = initialize_runtime(library_path);
@@ -160,8 +162,14 @@ int main(int argc, char **argv) {
   // Parse additional runtime initialization arguments from command line
   // Usage: <library_path> <model_path> <image_path> [key1 value1 key2 value2
   // ...]
-  int num_extra_args = argc - 4;
+  int num_extra_args = argc - 5;
   int num_pairs = num_extra_args / 2;
+  if (num_extra_args % 2 != 0) {
+    log_error(logger,
+              "Invalid number of extra arguments. Must be in key-value pairs.");
+    destroy_runtime(runtime);
+    return 1;
+  }
   const char **arg_keys = NULL;
   const void **arg_values = NULL;
   int *int_values = NULL;  // To hold integer values if needed
@@ -176,7 +184,7 @@ int main(int argc, char **argv) {
       return 1;
     }
     for (int i = 0; i < num_pairs; i++) {
-      int id = 4 + i * 2;  // Starting index for key-value pairs
+      int id = 5 + i * 2;  // Starting index for key-value pairs
       arg_keys[i] = argv[id];
       // Check if the argument is numeric
       if (is_numeric(argv[id + 1])) {
@@ -276,7 +284,7 @@ int main(int argc, char **argv) {
 
   // Optional: Print run stats
   print_memory_usage("CLOSE");
-  print_human_readable_stats(&timer, NUMBER_OF_INFERENCES);
+  print_human_readable_stats(&timer, number_of_inferences);
 
   return 0;
 }
