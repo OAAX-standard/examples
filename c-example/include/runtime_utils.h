@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <jpeglib.h>  // Jpeglib should always be included after stdio.h
 // clang-format on

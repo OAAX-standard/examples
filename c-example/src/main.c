@@ -5,7 +5,6 @@
 // send inputs and receive outputs in separate threads.
 
 // Standard libraries
-#include <ctype.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
