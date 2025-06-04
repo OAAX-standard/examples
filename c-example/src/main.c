@@ -96,26 +96,7 @@ void *receive_output_thread(void *arg) {
       log_error(logger, "Failed to receive output tensors after 10 attempts.");
       return NULL;
     }
-
-    // if last iteration print out the output
-    if (received_outputs == number_of_inferences - 1) {
-      print_tensors_metadata(output_tensors);
-      // Print tensors data
-      log_info(logger, "Output tensors data:");
-      for (int64_t i = 0; i < output_tensors->num_tensors; i++) {
-        log_info(logger, "Tensor %zu:", i);
-        int64_t size =
-            output_tensors->shapes[i][0] * output_tensors->shapes[i][1];
-        log_info(logger, "Tensor %zu size: %lld", i, size);
-        for (int64_t j = 0; j < size; j++) {
-          // Print the first 10 elements of the tensor data
-          printf("%f ", ((float *)output_tensors->data[i])[j]);
-          if (j % 6 == 5) {  // Print a new line every 6 elements
-            printf("\n");
-          }
-        }
-      }
-    }
+    print_tensors_metadata(output_tensors);
 
     // Free the output tensors
     deep_free_tensors_struct(output_tensors);
