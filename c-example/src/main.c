@@ -42,13 +42,15 @@ void *send_input_thread(void *arg) {
     // Wait until the number of input tensors in the pipeline is less than the
     // maximum allowed in the pipeline
     int j = 0;
-    while ((i - received_outputs) >= MAX_INPUTS_IN_PIPELINE && j < 20) {
-      log_debug(logger, "Waiting for space in the input pipeline...");
-      sleep_ms(20);  // Sleep for a short duration before checking again
+    while ((i - received_outputs) >= MAX_INPUTS_IN_PIPELINE && j < 500) {
+      sleep_ms(10);  // Sleep for a short duration before checking again
       j++;
     }
-    if (j >= 20) {
-      log_error(logger, "Timeout waiting for space in the input pipeline.");
+    // Timeout after 500 iterations (5 seconds)
+    if (j >= 500) {
+      log_error(logger,
+                "Timeout waiting for space in the input pipeline. "
+                "Stopping the inference thread.");
       return NULL;  // Exit the thread if timeout occurs
     }
     // Deep copy the input tensors
@@ -87,13 +89,14 @@ void *receive_output_thread(void *arg) {
     int code;
     code = runtime->receive_output(&output_tensors);
     int j = 0;
-    while (code != 0 && j < 10) {
+    while (code != 0 && j < 50) {
       sleep_ms(100);  // Wait before retrying
       code = runtime->receive_output(&output_tensors);
       j++;
     }
+    // Time out after 5 seconds (50 attempts)
     if (code != 0) {
-      log_error(logger, "Failed to receive output tensors after 10 attempts.");
+      log_error(logger, "Failed to receive output tensors after 50 attempts.");
       return NULL;
     }
     print_tensors_metadata(output_tensors);
