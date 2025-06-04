@@ -20,9 +20,8 @@
 #include "timer.h"      // NOLINT[build/include]
 #include "utils.h"      // NOLINT[build/include]
 
-// Prototypes for utility functions
-int is_numeric(const char *str);
-
+// Number of required arguments for the program
+#define N_REQUIRED_ARGS 10
 // Maximum number of inputs in the pipeline
 #define MAX_INPUTS_IN_PIPELINE 5
 
@@ -43,9 +42,15 @@ void *send_input_thread(void *arg) {
   for (int i = 0; i < number_of_inferences; i++) {
     // Wait until the number of input tensors in the pipeline is less than the
     // maximum allowed in the pipeline
-    while ((i - received_outputs) >= MAX_INPUTS_IN_PIPELINE) {
+    int j = 0;
+    while ((i - received_outputs) >= MAX_INPUTS_IN_PIPELINE && j < 20) {
       log_debug(logger, "Waiting for space in the input pipeline...");
-      sleep_ms(5);  // Sleep for a short duration before checking again
+      sleep_ms(20);  // Sleep for a short duration before checking again
+      j++;
+    }
+    if (j >= 20) {
+      log_error(logger, "Timeout waiting for space in the input pipeline.");
+      return NULL;  // Exit the thread if timeout occurs
     }
     // Deep copy the input tensors
     tensors_struct *input_tensors =
@@ -80,10 +85,17 @@ void *receive_output_thread(void *arg) {
 
   while (received_outputs < number_of_inferences) {
     // Receive the output tensors
-    int code = runtime->receive_output(&output_tensors);
-    if (code != 0) {
+    int code;
+    code = runtime->receive_output(&output_tensors);
+    int j = 0;
+    while (code != 0 && j < 10) {
       sleep_ms(100);  // Wait before retrying
-      continue;
+      code = runtime->receive_output(&output_tensors);
+      j++;
+    }
+    if (code != 0) {
+      log_error(logger, "Failed to receive output tensors after 10 attempts.");
+      return NULL;
     }
 
     // if last iteration print out the output
@@ -128,10 +140,11 @@ int main(int argc, char **argv) {
     return 1;
   }
   // Check command-line arguments
-  if (argc < 4) {
+  if (argc < N_REQUIRED_ARGS) {
     log_error(logger,
               "Usage: %s <library_path> <model_path> <image_path> "
-              "<number_of_inferences>"
+              "<number_of_inferences> <input_height> <input_width> <nchw> "
+              "<mean> <std>"
               "[key1 value1 key2 value2 ...]",
               argv[0]);
     return 1;
@@ -141,10 +154,24 @@ int main(int argc, char **argv) {
   char *model_path = argv[2];
   char *image_path = argv[3];
   number_of_inferences = atoi(argv[4]);
+  int input_height = atoi(argv[5]);
+  int input_width = atoi(argv[6]);
+  int nchw = atoi(argv[7]);  // 0 for NHWC, 1 for NCHW
+  if (nchw != 0 && nchw != 1) {
+    log_error(logger, "Invalid value for nchw. Must be 0 (NHWC) or 1 (NCHW).");
+    return 1;
+  }
+  float mean = atof(argv[8]);
+  float std = atof(argv[9]);
   log_info(logger, "Library path: %s", library_path);
   log_info(logger, "Model path: %s", model_path);
   log_info(logger, "Image path: %s", image_path);
   log_info(logger, "Number of inferences: %d", number_of_inferences);
+  log_info(logger, "Input height: %d", input_height);
+  log_info(logger, "Input width: %d", input_width);
+  log_info(logger, "NCHW: %d", nchw);
+  log_info(logger, "Mean: %f", mean);
+  log_info(logger, "Std: %f", std);
 
   // Initialize the runtime environment
   Runtime *runtime = initialize_runtime(library_path);
@@ -162,7 +189,7 @@ int main(int argc, char **argv) {
   // Parse additional runtime initialization arguments from command line
   // Usage: <library_path> <model_path> <image_path> [key1 value1 key2 value2
   // ...]
-  int num_extra_args = argc - 5;
+  int num_extra_args = argc - N_REQUIRED_ARGS;
   int num_pairs = num_extra_args / 2;
   if (num_extra_args % 2 != 0) {
     log_error(logger,
@@ -184,7 +211,7 @@ int main(int argc, char **argv) {
       return 1;
     }
     for (int i = 0; i < num_pairs; i++) {
-      int id = 5 + i * 2;  // Starting index for key-value pairs
+      int id = N_REQUIRED_ARGS + i * 2;  // Starting index for key-value pairs
       arg_keys[i] = argv[id];
       // Check if the argument is numeric
       if (is_numeric(argv[id + 1])) {
@@ -222,7 +249,8 @@ int main(int argc, char **argv) {
   // NOTE: Depending on the model inputs, you may need to change the image size,
   // mean, std and the tensors struct Also, make sure to adapt the
   // `resize_image` and `build_tensors_struct` function to your needs
-  uint8_t *data = (uint8_t *)load_image(image_path, 320, 240, 127, 128, true);
+  uint8_t *data = (uint8_t *)load_image(image_path, input_width, input_height,
+                                        mean, std, nchw);
   if (data == NULL) {
     log_error(logger, "Failed to load image.");
     destroy_runtime(runtime);  // Clean up resources
@@ -232,7 +260,8 @@ int main(int argc, char **argv) {
   // NOTE: Adjust the image size, mean, std and the tensors struct
   // Also, make sure to adapt the `resize_image` and `build_tensors_struct`
   // function to your needs
-  original_input_tensors = build_tensors_struct(data, 240, 320, 3);
+  original_input_tensors =
+      build_tensors_struct(data, input_height, input_width, 3);
   if (original_input_tensors == NULL) {
     log_error(logger, "Failed to build input tensors.");
     free(data);                // Free the image data
@@ -287,18 +316,4 @@ int main(int argc, char **argv) {
   print_human_readable_stats(&timer, number_of_inferences);
 
   return 0;
-}
-
-int is_numeric(const char *str) {
-  if (str == NULL || *str == '\0') {
-    return 0;  // Empty or NULL string is not numeric
-  }
-
-  while (*str) {
-    if (!isdigit((unsigned char)*str)) {
-      return 0;  // Non-digit character found
-    }
-    str++;
-  }
-  return 1;  // All characters are digits
 }

@@ -77,4 +77,11 @@ void *load_image(const char *image_path, int new_width, int new_height,
 tensors_struct *build_tensors_struct(uint8_t *data, size_t height, size_t width,
                                      size_t channels);
 
+/**
+ * @brief Check if a string is numeric
+ * @param [in] str The string to check
+ * @return 1 if the string is numeric, 0 otherwise
+ */
+int is_numeric(const char *str);
+
 #endif  // C_EXAMPLE_INCLUDE_RUNTIME_UTILS_H_

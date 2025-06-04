@@ -272,7 +272,7 @@ tensors_struct *build_tensors_struct(uint8_t *data, size_t height, size_t width,
     log_error(logger, "Failed to allocate memory for input tensors.");
     return NULL;
   }
-  input_tensors->num_tensors = 2;
+  input_tensors->num_tensors = 1;
   input_tensors->names =
       (char **)malloc(input_tensors->num_tensors * sizeof(char *));
   input_tensors->data_types = (tensor_data_type *)malloc(
@@ -296,16 +296,19 @@ tensors_struct *build_tensors_struct(uint8_t *data, size_t height, size_t width,
   input_tensors->shapes[0][3] = width;
   input_tensors->data[0] = (void *)data;
 
-  // Second tensor: NMS threshold
-  input_tensors->names[1] = copy_string("nms_sensitivity-");
-  input_tensors->data_types[1] = DATA_TYPE_FLOAT;
-  input_tensors->ranks[1] = 1;
-  input_tensors->shapes[1] =
-      (size_t *)malloc(input_tensors->ranks[1] * sizeof(size_t));
-  input_tensors->shapes[1][0] = 1;
-  input_tensors->data[1] =
-      (void *)malloc(input_tensors->shapes[1][0] * sizeof(float));
-  ((float *)input_tensors->data[1])[0] = 0.5f;
-
   return input_tensors;
+}
+
+int is_numeric(const char *str) {
+  if (str == NULL || *str == '\0') {
+    return 0;  // Empty or NULL string is not numeric
+  }
+
+  while (*str) {
+    if (!isdigit((unsigned char)*str)) {
+      return 0;  // Non-digit character found
+    }
+    str++;
+  }
+  return 1;  // All characters are digits
 }

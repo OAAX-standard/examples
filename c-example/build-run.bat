@@ -32,6 +32,11 @@ if not exist c_example.exe (
     exit /b 1
 )
 
-REM Run the executabl de with arguments
+@REM Usage: ./c_example
+@REM   <library_path> <model_path> <image_path> <number_of_inferences> // Program parameters
+@REM   <input_height> <input_width> <nchw> <mean> <std>                // Model parameters
+@REM   <key1> <value1> <key2> <value2> ... <keyN> <valueN>             // Runtime parameters
 echo Running c_example.exe...
-.\c_example.exe .\artifacts\RuntimeLibrary_x86_64.dll .\artifacts\model.onnx .\artifacts\image.jpg 10 "n_duplicates" "2" "n_threads_per_duplicate" "2" "runtime_log_level" "1"
+.\c_example.exe .\artifacts\RuntimeLibrary_x86_64.dll .\artifacts\model.onnx .\artifacts\image.jpg 100 ^
+240 320 1 127 128 ^
+"n_duplicates" "2" "n_threads_per_duplicate" "2" "runtime_log_level" "1" "queue_capacity" "10"

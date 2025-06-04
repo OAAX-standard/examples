@@ -17,7 +17,13 @@ else
     exit 1
 fi
 
-./c_example "$runtime_library" "./artifacts/model.onnx" "./artifacts/image.jpg" 10 \
+# Usage: ./c_example
+#   <library_path> <model_path> <image_path> <number_of_inferences> // Program parameters
+#   <input_height> <input_width> <nchw> <mean> <std>                // Model parameters
+#   <key1> <value1> <key2> <value2> ... <keyN> <valueN>             // Runtime parameters
+./c_example "$runtime_library" "./artifacts/model_modified.onnx" "./artifacts/image.jpg" 10 \
+    240 320 1 127 128 \
     "n_duplicates" "2" \
     "n_threads_per_duplicate" "2" \
-    "runtime_log_level" "1"
+    "runtime_log_level" "2" \
+    "queue_capacity" "10"
