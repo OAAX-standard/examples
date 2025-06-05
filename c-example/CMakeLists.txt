@@ -18,7 +18,7 @@ set(TOOLS_C_UTILITIES_INCLUDE_DIR ${DEPS_DIR}/tools/c-utilities/include)
 add_subdirectory(${TOOLS_C_UTILITIES_DIR} ${CMAKE_CURRENT_BINARY_DIR}/c_utilities)
 
 # Include directories
-add_executable(c_example src/main.c src/runtime_utils.c)
+add_executable(c_example src/main.c src/runtime_utils.c src/cJSON.c src/metrics.c)
 
 # include headers
 target_include_directories(c_example PUBLIC "include" "${TOOLS_C_UTILITIES_INCLUDE_DIR}")
