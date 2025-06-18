@@ -29,8 +29,12 @@ jobs:
           host_bucket = %(bucket)s.${{ secrets.S3_ENDPOINT_URL }}
           use_https = True
           EOF
+          # Compress the C example binary
+          cd c-example/build
+          tar -czf c_example.tar.gz c_example
+          cd ../..
           # Upload the C example binary to S3
-          s3cmd put c-example/build/c_example s3://oaax/c-example/ubuntu/x86_64/c_example
+          s3cmd put c-example/build/c_example.tar.gz s3://oaax/c-example/ubuntu/x86_64/c_example.tar.gz
 
   run-tests-on-ubuntu-22-04-arm:
     runs-on: ubuntu-22.04-arm
@@ -57,8 +61,12 @@ jobs:
           host_bucket = %(bucket)s.${{ secrets.S3_ENDPOINT_URL }}
           use_https = True
           EOF
+          # Compress the C example binary
+          cd c-example/build
+          tar -czf c_example.tar.gz c_example
+          cd ../..
           # Upload the C example binary to S3
-          s3cmd put c-example/build/c_example s3://oaax/c-example/ubuntu/aarch64/c_example
+          s3cmd put c-example/build/c_example.tar.gz s3://oaax/c-example/ubuntu/aarch64/c_example.tar.gz
 
   run-tests-on-windows-x86_64:
     runs-on: windows-latest
@@ -89,7 +97,10 @@ jobs:
           $env:PATH += ";$s5cmdPath"
           [Environment]::SetEnvironmentVariable("PATH", $env:PATH, [EnvironmentVariableTarget]::User)
 
+          # Compress the C example binary
+          cd .\c-example\build
+          tar -czf c_example.tar.gz c_example.exe jpeg62.dll
+          cd ../..
           $env:AWS_ACCESS_KEY_ID = "${{ secrets.S3_ACCESS_KEY }}"
           $env:AWS_SECRET_ACCESS_KEY = "${{ secrets.S3_SECRET_KEY }}"
-          s5cmd --endpoint-url "https://${{ secrets.S3_ENDPOINT_URL }}" cp ".\c-example\build\c_example.exe" "s3://oaax/c-example/windows/x86_64/c_example.exe"
-          s5cmd --endpoint-url "https://${{ secrets.S3_ENDPOINT_URL }}" cp ".\c-example\build\jpeg62.dll" "s3://oaax/c-example/windows/x86_64/jpeg62.dll"
+          s5cmd --endpoint-url "https://${{ secrets.S3_ENDPOINT_URL }}" cp ".\c-example\build\c_example.tar.gz" "s3://oaax/c-example/windows/x86_64/c_example.tar.gz"
