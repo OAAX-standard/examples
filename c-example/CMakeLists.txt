@@ -12,16 +12,17 @@ set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(DEPS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/deps)
 set(TOOLS_C_UTILITIES_DIR ${DEPS_DIR}/tools/c-utilities)
 set(JPEG_DIR ${DEPS_DIR}/jpeg/Windows)
+set(CJSON_DIR ${DEPS_DIR}/cJSON)
 set(TOOLS_C_UTILITIES_INCLUDE_DIR ${DEPS_DIR}/tools/c-utilities/include)
 
 # Link C Utilities project
 add_subdirectory(${TOOLS_C_UTILITIES_DIR} ${CMAKE_CURRENT_BINARY_DIR}/c_utilities)
 
 # Include directories
-add_executable(c_example src/main.c src/runtime_utils.c src/cJSON.c src/metrics.c)
+add_executable(c_example src/main.c src/runtime_utils.c ${CJSON_DIR}/cJSON.c)
 
 # include headers
-target_include_directories(c_example PUBLIC "include" "${TOOLS_C_UTILITIES_INCLUDE_DIR}")
+target_include_directories(c_example PUBLIC "include" "${TOOLS_C_UTILITIES_INCLUDE_DIR}" "${CJSON_DIR}/")
 
 # link libs
 if(WIN32)

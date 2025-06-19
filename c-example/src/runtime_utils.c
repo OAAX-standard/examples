@@ -8,7 +8,9 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
+#include "cJSON.h"       // NOLINT[build/include]
 #include "lib_loader.h"  // NOLINT[build/include]
 #include "logger.h"      // NOLINT[build/include]
 
@@ -311,4 +313,177 @@ int is_numeric(const char *str) {
     str++;
   }
   return 1;  // All characters are digits
+}
+
+Runtime *init_runtime_module(const char *library_path, int num_pairs,
+                             const char **arg_keys, const void **arg_values,
+                             const char *model_path) {
+  Runtime *runtime = initialize_runtime(library_path);
+  if (runtime == NULL) {
+    log_error(logger, "Failed to initialize runtime.");
+    return NULL;
+  }
+  log_info(logger, "Runtime name: %s - Runtime version: %s",
+           runtime->runtime_name(), runtime->runtime_version());
+
+  if (runtime->runtime_initialization_with_args(num_pairs, arg_keys,
+                                                arg_values) != 0) {
+    log_error(logger, "Failed to initialize runtime environment.");
+    destroy_runtime(runtime);
+    return NULL;
+  }
+
+  if (runtime->runtime_model_loading(model_path) != 0) {
+    log_error(logger, "Failed to load model.");
+    destroy_runtime(runtime);
+    return NULL;
+  }
+  return runtime;
+}
+
+// Load image and build input tensor struct
+tensors_struct *prepare_input(const char *image_path, int width, int height,
+                              float mean, float std, int nchw) {
+  uint8_t *data =
+      (uint8_t *)load_image(image_path, width, height, mean, std, nchw);
+  if (data == NULL) {
+    log_error(logger, "Failed to load image.");
+    return NULL;
+  }
+  tensors_struct *ts = build_tensors_struct(data, height, width, 3);
+  if (ts == NULL) {
+    log_error(logger, "Failed to build input tensors.");
+    free(data);
+    return NULL;
+  }
+  log_info(logger, "Input tensors created with %zu tensors.", ts->num_tensors);
+  return ts;
+}
+
+void print_usage(const char *prog_name) {
+  log_error(logger,
+            "Usage: %s <library_path> <model_path> <image_path> "
+            "<number_of_inferences> <input_height> <input_width> <nchw> "
+            "<mean> <std>"
+            "[key1 value1 key2 value2 ...]",
+            prog_name);
+}
+
+int parse_args(int n_required_args, int argc, char **argv, char **library_path,
+               char **model_path, char **image_path, int *num_inferences,
+               int *input_height, int *input_width, int *nchw, float *mean,
+               float *std, int *num_pairs, const char ***arg_keys,
+               const void ***arg_values, int **int_values) {
+  if (argc < n_required_args) {
+    print_usage(argv[0]);
+    return -1;
+  }
+  *library_path = argv[1];
+  *model_path = argv[2];
+  *image_path = argv[3];
+  *num_inferences = atoi(argv[4]);
+  *input_height = atoi(argv[5]);
+  *input_width = atoi(argv[6]);
+  *nchw = atoi(argv[7]);
+  if (*nchw != 0 && *nchw != 1) {
+    log_error(logger, "Invalid value for nchw. Must be 0 (NHWC) or 1 (NCHW).");
+    return -1;
+  }
+  *mean = atof(argv[8]);
+  *std = atof(argv[9]);
+
+  int extra = argc - n_required_args;
+  *num_pairs = extra / 2;
+  if (extra % 2 != 0) {
+    log_error(logger,
+              "Invalid number of extra arguments. Must be in key-value pairs.");
+    return -1;
+  }
+  if (*num_pairs > 0) {
+    *arg_keys = malloc(*num_pairs * sizeof(char *));
+    *arg_values = malloc(*num_pairs * sizeof(void *));
+    *int_values = malloc(*num_pairs * sizeof(int));
+    if (!*arg_keys || !*arg_values || !*int_values) {
+      log_error(logger, "Memory allocation failed for runtime args.");
+      return -1;
+    }
+    for (int i = 0; i < *num_pairs; i++) {
+      int idx = n_required_args + i * 2;
+      (*arg_keys)[i] = argv[idx];
+      if (is_numeric(argv[idx + 1])) {
+        (*int_values)[i] = atoi(argv[idx + 1]);
+        (*arg_values)[i] = &(*int_values)[i];
+      } else {
+        (*int_values)[i] = -1;
+        (*arg_values)[i] = argv[idx + 1];
+      }
+    }
+  } else {
+    *arg_keys = NULL;
+    *arg_values = NULL;
+    *int_values = NULL;
+  }
+  // Log argument values
+  log_info(logger, "Library path: %s", *library_path);
+  log_info(logger, "Model path: %s", *model_path);
+  log_info(logger, "Image path: %s", *image_path);
+  log_info(logger, "Number of inferences: %d", *num_inferences);
+  log_info(logger, "Input height: %d", *input_height);
+  log_info(logger, "Input width: %d", *input_width);
+  log_info(logger, "NCHW: %d", *nchw);
+  log_info(logger, "Mean: %f", *mean);
+  log_info(logger, "Std: %f", *std);
+  return 0;
+}
+
+void save_metrics_json(const char *runtime_name, const char *runtime_version,
+                       const char *model_name, int input_width,
+                       int input_height, float number_of_inferences,
+                       float avg_throughput, float cpu_usage, float ram_usage,
+                       int n_required_args, int argc, char **argv,
+                       const char *json_path) {
+  cJSON *root = cJSON_CreateObject();
+  if (root == NULL) {
+    fprintf(stderr, "Failed to create JSON object\n");
+    return;
+  }
+  // Add current date and time
+  time_t now = time(NULL);
+  char time_buffer[256];
+  strftime(time_buffer, sizeof(time_buffer), "%Y-%m-%dT%H:%M:%SZ",
+           gmtime(&now));
+  cJSON_AddStringToObject(root, "datetime", time_buffer);
+
+  // Add runtime info
+  cJSON_AddStringToObject(root, "runtime_name", runtime_name);
+  cJSON_AddStringToObject(root, "runtime_version", runtime_version);
+
+  //// Add runtime config
+  for (int i = n_required_args; i < argc; i += 2) {
+    cJSON_AddStringToObject(root, argv[i], argv[i + 1]);
+  }
+
+  // Add model info
+  cJSON_AddStringToObject(root, "model_name", model_name);
+  cJSON_AddNumberToObject(root, "input_width", input_width);
+  cJSON_AddNumberToObject(root, "input_height", input_height);
+
+  // Add run metrics
+  cJSON_AddNumberToObject(root, "number_of_inferences", number_of_inferences);
+  cJSON_AddNumberToObject(root, "throughput", avg_throughput);
+  cJSON_AddNumberToObject(root, "cpu_usage", cpu_usage);
+  cJSON_AddNumberToObject(root, "ram_usage", ram_usage);
+
+  // Save the JSON object to a file
+  FILE *file = fopen(json_path, "a");
+  if (file != NULL) {
+    char *json_string = cJSON_PrintUnformatted(root);
+    if (json_string != NULL) {
+      fprintf(file, "%s\n", json_string);
+      free(json_string);
+    }
+    fclose(file);
+  }
+
+  cJSON_Delete(root);
 }
