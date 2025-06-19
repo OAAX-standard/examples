@@ -17,7 +17,6 @@
 // C utilities
 #include "logger.h"     // NOLINT[build/include]
 #include "memory.h"     // NOLINT[build/include]
-#include "sysinfo.h"    // NOLINT[build/include]
 #include "threading.h"  // NOLINT[build/include]
 #include "timer.h"      // NOLINT[build/include]
 #include "utils.h"      // NOLINT[build/include]
@@ -206,7 +205,7 @@ int main(int argc, char **argv) {
     record_info_running = false;
   }
   // Wait a second till the first recording is done
-  sleep(1);
+  sleep_ms(1000);
 
   // Run inference and record timing
   run_inference(runtime, &timer);

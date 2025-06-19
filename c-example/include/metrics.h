@@ -7,8 +7,8 @@
 #include <stdlib.h>
 
 #ifdef _WIN32
-#include <psapi.h>
 #include <windows.h>
+#include <psapi.h>
 
 ULONGLONG get_process_cpu_time() {
   FILETIME creation, exit, kernel, user;
