@@ -1,0 +1,19 @@
+{
+    "model": {
+        "input_name": "images",
+        "input_width": 640,
+        "input_height": 640,
+        "nchw": 0,
+        "mean": [
+            0,
+            0,
+            0
+        ],
+        "std": [
+            1,
+            1,
+            1
+        ],
+        "input_dtype": "uint8"
+    }
+}

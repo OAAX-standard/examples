@@ -1,3 +1,18 @@
 [submodule "c-example/deps/tools"]
 	path = c-example/deps/tools
 	url = https://github.com/OAAX-standard/tools
+[submodule "yolov8-inference/external/CLI11"]
+	path = yolov8-inference/external/CLI11
+	url = https://github.com/CLIUtils/CLI11.git
+[submodule "yolov8-inference/external/json"]
+	path = yolov8-inference/external/json
+	url = https://github.com/nlohmann/json.git
+[submodule "yolov8-inference/external/spdlog"]
+	path = yolov8-inference/external/spdlog
+	url = https://github.com/gabime/spdlog
+[submodule "yolov8-inference/external/oaax-tools"]
+	path = yolov8-inference/external/oaax-tools
+	url = https://github.com/OAAX-standard/tools.git
+[submodule "yolov8-inference/external/oaax_tools"]
+	path = yolov8-inference/external/oaax_tools
+	url = https://github.com/OAAX-standard/tools.git
