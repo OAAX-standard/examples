@@ -189,54 +189,112 @@ int main(int argc, char **argv) {
 
         // Create video writer
         std::string output_path = "output_" + input_path.substr(input_path.find_last_of('/') + 1);
-        cv::VideoWriter writer(output_path, cv::VideoWriter::fourcc('m', 'p', '4', 'v'),
+        // Use MJPEG codec which handles FPS better
+        cv::VideoWriter writer(output_path, cv::VideoWriter::fourcc('m', 'j', 'p', 'g'),
                                fps, cv::Size(frame_width, frame_height));
 
-        cv::Mat frame;
-        while (cap.read(frame)) {
-          // Convert frame from BGR to RGB
-          cv::cvtColor(frame, frame, cv::COLOR_BGR2RGB);
-          // Preprocess the frame
-          PreprocessResult prep_result = preprocess_image(
-              frame, config["model"]["input_width"].get<int>(),
-              config["model"]["input_height"].get<int>(),
-              PAD, // Use PAD as the desired method
-              cv::Scalar(config["model"]["mean"][0].get<float>(),
-                         config["model"]["mean"][1].get<float>(),
-                         config["model"]["mean"][2].get<float>()),
-              cv::Scalar(config["model"]["std"][0].get<float>(),
-                         config["model"]["std"][1].get<float>(),
-                         config["model"]["std"][2].get<float>()));
+        // Thread-safe queues for frame communication
+        std::queue<tensors_struct*> input_queue;
+        std::queue<std::pair<tensors_struct*, std::pair<cv::Mat, PreprocessResult>>> output_queue;
+        std::mutex queue_mutex;
+        std::condition_variable queue_cv;
+        std::atomic<bool> input_done(false);
+        std::atomic<bool> output_done(false);
 
-          // Create input tensors
-          string input_name = config["model"]["input_name"].get<string>();
-          tensors_struct* tensors;
-          tensors = create_tensors(
-                prep_result.image, input_name, config["model"]["nchw"].get<int>(),
-                config["model"]["input_dtype"].get<string>());
+        // Input thread: read frames, preprocess, and send to runtime
+        thread input_thread([&]() {
+          cv::Mat frame;
+          while (cap.read(frame)) {
+            // Convert frame from BGR to RGB
+            cv::cvtColor(frame, frame, cv::COLOR_BGR2RGB);
+            // Store RGB frame for output
+            cv::Mat rgb_frame = frame.clone();
+            
+            // Preprocess the frame
+            PreprocessResult prep_result = preprocess_image(
+                frame, config["model"]["input_width"].get<int>(),
+                config["model"]["input_height"].get<int>(),
+                PAD, // Use PAD as the desired method
+                cv::Scalar(config["model"]["mean"][0].get<float>(),
+                           config["model"]["mean"][1].get<float>(),
+                           config["model"]["mean"][2].get<float>()),
+                cv::Scalar(config["model"]["std"][0].get<float>(),
+                           config["model"]["std"][1].get<float>(),
+                           config["model"]["std"][2].get<float>()));
 
-          // Run inference
-          tensors_struct *output_tensors = nullptr;
-          thread input_thread(send_input_tensors_routine, runtime, tensors);
-          thread output_thread(receive_output_tensors_routine, runtime, &output_tensors);
-          input_thread.join();
-          output_thread.join();
+            // Create input tensors
+            string input_name = config["model"]["input_name"].get<string>();
+            tensors_struct* tensors = create_tensors(
+                  prep_result.image, input_name, config["model"]["nchw"].get<int>(),
+                  config["model"]["input_dtype"].get<string>());
 
-          // Post-process and visualize
-          std::vector<Detection> detections;
-          if(output_tensors){
-            detections = parse_yolo_output(output_tensors, config["postprocessing"]["confidence_threshold"].get<float>(), prep_result, frame.size());
+            if (tensors) {
+              // Send tensors to runtime using robust routine
+              send_input_tensors_routine(runtime, tensors);
+              
+              // Store RGB frame and preprocessing metadata for later output matching
+              {
+                std::lock_guard<std::mutex> lock(queue_mutex);
+                output_queue.push({nullptr, {rgb_frame, prep_result}});
+              }
+            }
           }
+          input_done = true;
+          queue_cv.notify_all();
+          logger.info("Input thread finished processing all frames.");
+        });
 
-          std::vector<Detection> nms_detections =
-              non_maximum_suppression(detections, config["postprocessing"]["iou_threshold"].get<float>());
-          
-          std::vector<std::string> class_names = config["postprocessing"]["class_names"].get<std::vector<std::string>>();
-          draw_detections(frame, nms_detections, class_names);
+        // Output thread: receive outputs, post-process, and write frames
+        thread output_thread([&]() {
+          int frames_processed = 0;
+          while (frames_processed < static_cast<int>(cap.get(cv::CAP_PROP_FRAME_COUNT)) || !input_done) {
+            tensors_struct *output_tensors = nullptr;
+            receive_output_tensors_routine(runtime, &output_tensors);
 
-          writer.write(frame);
-          deep_free_tensors_struct(tensors);
-        }
+            if (output_tensors) {
+              // Get the corresponding frame and preprocessing data from queue
+              cv::Mat rgb_frame;
+              PreprocessResult prep_result{cv::Mat(), 0.0f, 0, 0};
+              {
+                std::lock_guard<std::mutex> lock(queue_mutex);
+                if (!output_queue.empty()) {
+                  rgb_frame = output_queue.front().second.first;
+                  prep_result = output_queue.front().second.second;
+                  output_queue.pop();
+                }
+              }
+
+              if (!rgb_frame.empty()) {
+                // Post-process and visualize with correct preprocessing metadata
+                std::vector<Detection> detections = parse_yolo_output(
+                    output_tensors, 
+                    config["postprocessing"]["confidence_threshold"].get<float>(), 
+                    prep_result,
+                    rgb_frame.size());
+
+                std::vector<Detection> nms_detections =
+                    non_maximum_suppression(detections, config["postprocessing"]["iou_threshold"].get<float>());
+
+                std::vector<std::string> class_names = config["postprocessing"]["class_names"].get<std::vector<std::string>>();
+                draw_detections(rgb_frame, nms_detections, class_names);
+
+                // Write RGB frame to output video
+                writer.write(rgb_frame);
+                frames_processed++;
+              }
+
+              deep_free_tensors_struct(output_tensors);
+            } else {
+              // No output received, wait a bit before trying again
+              this_thread::sleep_for(chrono::milliseconds(10));
+            }
+          }
+          output_done = true;
+          logger.info("Output thread finished processing {} frames.", frames_processed);
+        });
+
+        input_thread.join();
+        output_thread.join();
 
         cap.release();
         writer.release();

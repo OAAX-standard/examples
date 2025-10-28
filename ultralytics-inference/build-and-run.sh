@@ -25,11 +25,11 @@ fi
 # Go to the build directory
 cd "$BUILD_DIR"
 # Clean previous builds
-rm -rf *
+# rm -rf *
 # Build the project
 cmake ..
 make -j
 # Run the executable
 runtime_dir=$(dirname "$RUNTIME_LIBRARY_PATH")
 export LD_LIBRARY_PATH=$runtime_dir:$LD_LIBRARY_PATH
-./ultralytics_inference --library "$RUNTIME_LIBRARY_PATH" --model "$MODEL_PATH" --config "$CONFIG_PATH" --input "../artifacts/image.jpg"
+./ultralytics_inference --library "$RUNTIME_LIBRARY_PATH" --model "$MODEL_PATH" --config "$CONFIG_PATH" --input "../artifacts/videoplayback.mp4"
