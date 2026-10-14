@@ -3,69 +3,31 @@
 [![Check C/C++ Code Style](https://github.com/OAAX-standard/examples/actions/workflows/run-linter.yml/badge.svg)](https://github.com/OAAX-standard/examples/actions/workflows/run-linter.yml)
 [![Run tests](https://github.com/OAAX-standard/examples/actions/workflows/run-tests.yml/badge.svg)](https://github.com/OAAX-standard/examples/actions/workflows/run-tests.yml)
 
-This repository is dedicated to providing examples of how to use the OAAX runtime and conversion toolchain.
-The examples are provided is self-contained folders, each containing a README file that explains how to build and run the example.
+A standalone example of how to use an [OAAX 2.0](https://oaax.org) runtime from an application.
 
-Please note that examples can be used with any OAAX-compliant runtime. Hence, to run a model on different AI
-accelerator, you need to compile the ONNX model using the right conversion toolchain and replace the runtime library with the one that is compatible with the accelerator.
+It has no dependencies on other OAAX repositories or git submodules: the OAAX 2.0 interface header, a sample model and
+ready-to-use CPU runtimes are all included.
 
 ## Structure
 
-The repository is structured as follows:
-
-- [c-example](c-example): Contains an example of how to use an OAAX runtime in a C program.
-- [tools](tools): Contains a set of utility tools that can be used in AI applications for benchmarking, profiling, and debugging runtimes.
+- [c-example](c-example): loads an OAAX runtime in a C program, runs a face detection model on an image and prints the
+  detections. Works on Linux (x86_64, aarch64) and Windows (x86_64).
 
 ## Getting started
 
-> Note: You can find an sample ONNX model in [c-example/artifacts/model.onnx](c-example/artifacts/model.onnx).
-
-### Compile the model for the target hardware
-
-The examples provided assume that the optimized model file has been generated using a compatible conversion toolchain.
-> All conversion toolchains can be found in the [contributions](https://github.com/oaax-standard/contributions)
-> repository.
-
-For instance, to optimize an ONNX model for the CPU, download the toolchain from [Google Drive](https://drive.google.com/file/d/1Xz9m1ATwmM9w81bDuZ1ibNqcyLmOKFWW/view) and run the following commands:
-
 ```bash
-docker load -i conversion-toolchain-latest.tar
-docker run --rm -v $(pwd):/run -it conversion-toolchain:latest /run/model.onnx /run/
-```
-
-The last command takes a model file available at `$(pwd)/model.onnx` and
-generates an optimized model that will be saved in the `/run/` folder.    
-The generated model `model-simplified.onnx` is compatible for use only by the OAAX CPU runtime.
-
-> You can find other contributed conversion toolchains in
-> the [contributions](https://github.com/oaax-standard/contributions) repository, in addition to documentation on how to
-> use each one of them.
-
-
-### Download the runtime
-
-Depending on the target hardware, you need to download the appropriate runtime. The runtimes are available in the [contributions](https://github.com/oaax-standard/contributions) repository.
-
-For example, to use the CPU runtime on an x86_64 machine, run the following command:
-
-```bash
-wget https://artifactory.nxvms.dev/artifactory/nxai_open/OAAX/runtimes/async/cpu-x86_64-ort.tar.gz
-tar -xvf cpu-x86_64-ort.tar.gz # extract the runtime library: libRuntimeLibrary.so
-```
-
-### Clone the repository
-
-Clone the repository and its submodules then navigate to the `examples` folder:
-
-```bash
-git clone --recurse-submodules https://github.com/OAAX-standard/examples.git
+git clone https://github.com/OAAX-standard/examples.git
 cd examples
+sudo apt-get install cmake build-essential libjpeg-dev  # Ubuntu
+bash c-example/build-run.sh
 ```
 
-### Build the example
+See the [c-example README](c-example/README.md) for details, and for how to use your own runtime, model and image.
 
-Currently, there is only one example available, which is a C example. To build and use the example, please refer to the [README](c-example/README.md) file in the `c-example` folder for detailed instructions.
+## Using another accelerator
 
+Examples work with any OAAX-compliant runtime. To run a model on a different AI accelerator, optimize the model with
+that accelerator's conversion toolchain and replace the runtime library with the one built for it.
 
 ## Contributing
 
