@@ -1,248 +1,190 @@
 // Copyright (c) OAAX. All rights reserved.
 // Licensed under the Apache License, Version 2.0.
 
-// Description: This is an example of a C program that uses the OAAX runtime to
-// send inputs and receive outputs in separate threads.
+// Example OAAX 2.0 host application: loads a runtime library and an optimized
+// face detection model, sends a few inference requests with the same image,
+// matches every output to its request and prints the detections.
+//
+// Usage: ./c_example <runtime library> <model path> <image path>
 
-// Standard libraries
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
-#include "runtime_utils.h"  // NOLINT[build/include]
+#include "image.h"    // NOLINT[build/include]
+#include "runtime.h"  // NOLINT[build/include]
+#include "tensors.h"  // NOLINT[build/include]
 
-// C utilities
-#include "logger.h"     // NOLINT[build/include]
-#include "memory.h"     // NOLINT[build/include]
-#include "threading.h"  // NOLINT[build/include]
-#include "timer.h"      // NOLINT[build/include]
-#include "utils.h"      // NOLINT[build/include]
-
-// Number of inferences to perform
+// Number of inference requests to send
 // NOTE: Adjust this as you see fit
-#define NUMBER_OF_INFERENCES 10
+#define NUM_REQUESTS 10
 
-// Logger
-Logger *logger = NULL;
+// Max time to wait for each output (the runtime may be busy with a backlog)
+#define RETRIEVE_TIMEOUT_MS 5000
 
-// Global variable to hold the original input tensors
-tensors_struct *original_input_tensors = NULL;
+// Model-specific values (the face locator in artifacts/model.onnx)
+// NOTE: Adjust these to the input tensors of your own model
+#define MODEL_ID 0  // Index of the model in the array given to load_models
+#define IMAGE_WIDTH 320
+#define IMAGE_HEIGHT 240
+#define IMAGE_MEAN 127.0f
+#define IMAGE_STD 128.0f
+#define NMS_SENSITIVITY 0.5f
 
-// Thread function for sending inputs
-void *send_input_thread(void *arg) {
-  Runtime *runtime = (Runtime *)arg;
-  int code = 0;
-
-  for (int i = 0; i < NUMBER_OF_INFERENCES; i++) {
-    // Deep copy the input tensors
-    tensors_struct *input_tensors =
-        deep_copy_tensors_struct(original_input_tensors);
-    if (input_tensors == NULL) {
-      log_error(logger, "Failed to deep copy input tensors.");
-      continue;
-    }
-
-    // Send the input tensors
-    code = runtime->send_input(input_tensors);
-    if (code != 0) {
-      log_error(logger, "Failed to send input tensors.");
-      deep_free_tensors_struct(input_tensors);  // Free before returning
-      return NULL;
-    }
-
-    // Ownership of input_tensors is transferred to the runtime
-    // The inference thread will free input_tensors after processing
-
-    log_debug(logger, "-> Sent input %d", i + 1);
-  }
-
-  return NULL;
+static double now_ms(void) {
+  struct timespec ts;
+  timespec_get(&ts, TIME_UTC);
+  return ts.tv_sec * 1e3 + ts.tv_nsec / 1e6;
 }
 
-// Thread function for receiving outputs
-void *receive_output_thread(void *arg) {
-  Runtime *runtime = (Runtime *)arg;
-  tensors_struct *output_tensors = NULL;
-  int received_outputs = 0;
-  int attempts = 0;
-  // Maximum number of consecutive failed attempts to receive output tensors
-  // before giving up This is useful in case the runtime is not able to provide
-  // output tensors for some reason
-  // NOTE: Adjust this as you see fit
-  const int MAX_ATTEMPTS = 10;
+// Builds the input tensors of request `id`: the image (NCHW float) and the NMS
+// sensitivity. The tensor names are those declared in the model's ONNX graph.
+// The image is copied: once enqueued, the runtime owns and frees the tensors.
+static Tensors *build_input_tensors(int id, const float *image) {
+  const int image_shape[] = {1, 3, IMAGE_HEIGHT, IMAGE_WIDTH};
+  const size_t image_size =
+      3 * IMAGE_HEIGHT * IMAGE_WIDTH * sizeof(float);  // In bytes
+  const int nms_shape[] = {1};
+  const float nms_sensitivity = NMS_SENSITIVITY;
 
-  while (received_outputs < NUMBER_OF_INFERENCES) {
-    // Receive the output tensors
-    int code = runtime->receive_output(&output_tensors);
-    if (code != 0) {
-      log_warning(logger, "No more output tensors available. Attempt %d",
-                  attempts + 1);
-      attempts++;
-      if (attempts >= MAX_ATTEMPTS) {
-        log_error(logger,
-                  "Exceeded maximum attempts to receive output tensors.");
-        break;
-      }
-      sleep_ms(100);  // Wait before retrying
+  Tensors *input = alloc_tensors(id, 2);
+  if (input == NULL) return NULL;
+  if (fill_tensor(&input->tensors[0], "image-", DATA_TYPE_FLOAT, 4, image_shape,
+                  image, image_size) != 0 ||
+      fill_tensor(&input->tensors[1], "nms_sensitivity-", DATA_TYPE_FLOAT, 1,
+                  nms_shape, &nms_sensitivity, sizeof(float)) != 0) {
+    free_tensors(input);
+    return NULL;
+  }
+  return input;
+}
+
+// Prints the metadata of an output tensor, and its detections if it holds
+// `bboxes-format:xyxysc` rows (x1, y1, x2, y2, score, class), where the
+// coordinates are relative to the image size (0 to 1).
+static void print_output(const Tensors *output) {
+  for (int i = 0; i < output->num_tensors; i++) {
+    const TensorDescriptor *tensor = &output->tensors[i];
+    printf("Output tensor '%s': type %d, shape [", tensor->name,
+           (int)tensor->data_type);
+    for (int d = 0; d < tensor->rank; d++) {
+      printf(d ? ", %d" : "%d", tensor->shape[d]);
+    }
+    printf("]\n");
+
+    if (tensor->data_type != DATA_TYPE_FLOAT || tensor->rank != 2 ||
+        tensor->shape[1] != 6 ||
+        tensor->data_size < (size_t)tensor->shape[0] * 6 * sizeof(float)) {
       continue;
     }
-    attempts = 0;  // Reset attempts after a successful receive
-
-    // if last iteration print out the output
-    if (received_outputs == NUMBER_OF_INFERENCES - 1) {
-      print_tensors_metadata(output_tensors);
-      // Print tensors data
-      log_info(logger, "Output tensors data:");
-      for (int64_t i = 0; i < output_tensors->num_tensors; i++) {
-        log_info(logger, "Tensor %zu:", i);
-        int64_t size =
-            output_tensors->shapes[i][0] * output_tensors->shapes[i][1];
-        log_info(logger, "Tensor %zu size: %lld", i, size);
-        for (int64_t j = 0; j < size; j++) {
-          // Print the first 10 elements of the tensor data
-          printf("%f ", ((float *)output_tensors->data[i])[j]);
-          if (j % 6 == 5) {  // Print a new line every 6 elements
-            printf("\n");
-          }
-        }
-      }
+    const float *rows = (const float *)tensor->data;
+    for (int r = 0; r < tensor->shape[0]; r++) {
+      const float *box = rows + r * 6;
+      printf("  face %.3f at (%.3f, %.3f) - (%.3f, %.3f)\n", box[4], box[0],
+             box[1], box[2], box[3]);
     }
-
-    // Free the output tensors
-    deep_free_tensors_struct(output_tensors);
-    output_tensors = NULL;
-    received_outputs++;
-    log_debug(logger, "<- Received output %d", received_outputs);
   }
-
-  return NULL;
 }
 
 int main(int argc, char **argv) {
-  // Utils
-  Timer timer;
-  // Create a logger that prints and saves logs to a file
-  // NOTE: adjust the logger params: file name, file log level, and console log
-  // level See OAAX/examples/tools/c-utilities/include/logger.h for more details
-  logger = create_logger("C example", "main.log", LOG_DEBUG, LOG_DEBUG);
-  if (logger == NULL) {
-    printf("Failed to create logger.\n");
-    return 1;
-  }
-  // Check command-line arguments
   if (argc != 4) {
-    log_error(logger, "Usage: %s <library_path> <model_path> <image_path>",
-              argv[0]);
+    fprintf(stderr, "Usage: %s <runtime library> <model path> <image path>\n",
+            argv[0]);
     return 1;
   }
+  const char *library_path = argv[1];
+  const char *model_path = argv[2];
+  const char *image_path = argv[3];
 
-  char *library_path = argv[1];
-  char *model_path = argv[2];
-  char *image_path = argv[3];
-  log_info(logger, "Library path: %s", library_path);
-  log_info(logger, "Model path: %s", model_path);
-  log_info(logger, "Image path: %s", image_path);
+  Runtime runtime;
+  if (load_runtime_library(library_path, &runtime) != 0) return 1;
+  printf("Runtime: %s %s\n", runtime.get_name(), runtime.get_version());
 
-  // Initialize the runtime environment
-  Runtime *runtime = initialize_runtime(library_path);
-  if (runtime == NULL) {
-    log_error(logger, "Failed to initialize runtime.");
-    return 1;
+  int exit_code = 1;
+  int received[NUM_REQUESTS] = {0};
+  RuntimeStatus status;
+  float *image = NULL;
+
+  // 1. Initialize the runtime. Keys and values are always strings; the keys a
+  // runtime understands are vendor-specific and unknown keys are ignored.
+  // NOTE: Adjust these as you see fit (see your runtime's documentation)
+  const char *init_keys[] = {"log_level", "log_file"};
+  const char *init_values[] = {"3", "runtime.log"};
+  Config init_config = {2, init_keys, init_values};
+  if ((status = runtime.init(init_config)) != RUNTIME_STATUS_SUCCESS) {
+    report_error(&runtime, "runtime_init", status);
+    goto unload;
   }
 
-  log_info(logger, "Runtime name: %s - Runtime version: %s",
-           runtime->runtime_name(), runtime->runtime_version());
+  // 2. Load the model(s). A model's id is its index in the array.
+  ModelConfig model = {.file_path = model_path,
+                       .model_data = NULL,
+                       .model_size = 0,
+                       .config = {0, NULL, NULL}};
+  if ((status = runtime.load_models(1, &model)) != RUNTIME_STATUS_SUCCESS) {
+    report_error(&runtime, "runtime_load_models", status);
+    goto cleanup;
+  }
+  printf("Runtime info: %s\n", runtime.get_info());
 
-  // Initialize the runtime with arguments
-  // These parameters are runtime-specific and may vary based on the runtime you
-  // are using They are compatible for the CPU runtime and they server as
-  // n_duplicates: Number of model duplicates that run asynchronously
-  // n_threads_per_duplicate: Number of threads per model duplicate
-  // NOTE: Adjust these parameters as you see fit
-  int n_duplicates = 1;
-  int n_threads_per_duplicate = 1;
-  int runtime_log_level = 3;
-  int return_code = runtime->runtime_initialization_with_args(
-      3,
-      (const char *[]){"n_duplicates", "n_threads_per_duplicate",
-                       "runtime_log_level"},
-      (const void *[]){&n_duplicates, &n_threads_per_duplicate,
-                       &runtime_log_level});
+  // 3. Preprocess the image once; every request sends a copy of it.
+  image = load_image(image_path, IMAGE_WIDTH, IMAGE_HEIGHT, IMAGE_MEAN,
+                     IMAGE_STD, true);
+  if (image == NULL) goto cleanup;
 
-  if (return_code != 0) {
-    log_error(logger, "Failed to initialize runtime environment.");
-    destroy_runtime(runtime);  // Clean up resources
-    return 1;
+  // 4. Enqueue the requests. enqueue_input doesn't block: the runtime runs the
+  // inferences asynchronously. On success the runtime owns the input tensors,
+  // on failure we still do and must free them.
+  double start = now_ms();
+  for (int id = 0; id < NUM_REQUESTS; id++) {
+    Tensors *input = build_input_tensors(id, image);
+    if (input == NULL) {
+      fprintf(stderr, "Error: out of memory\n");
+      goto cleanup;
+    }
+    status = runtime.enqueue_input(MODEL_ID, input);
+    if (status != RUNTIME_STATUS_SUCCESS) {
+      report_error(&runtime, "runtime_enqueue_input", status);
+      free_tensors(input);
+      goto cleanup;
+    }
   }
 
-  // Load the model
-  if (runtime->runtime_model_loading(model_path) != 0) {
-    log_error(logger, "Failed to load model.");
-    destroy_runtime(runtime);  // Clean up resources
-    return 1;
+  // 5. Retrieve the outputs. They may come back in any order: `id` ties each
+  // one to its request. We own the outputs and must free them.
+  for (int count = 0; count < NUM_REQUESTS; count++) {
+    int model_id = -1;
+    Tensors *output = NULL;
+    status = runtime.retrieve_output(&model_id, &output, RETRIEVE_TIMEOUT_MS);
+    if (status != RUNTIME_STATUS_SUCCESS) {
+      report_error(&runtime, "runtime_retrieve_output", status);
+      goto cleanup;
+    }
+    int id = output->id;
+    if (model_id != MODEL_ID || id < 0 || id >= NUM_REQUESTS || received[id]) {
+      fprintf(stderr, "Error: unexpected output (model %d, request %d)\n",
+              model_id, id);
+      free_tensors(output);
+      goto cleanup;
+    }
+    received[id] = 1;
+    if (count == NUM_REQUESTS - 1) print_output(output);  // Show the last one
+    free_tensors(output);
   }
 
-  // Load the image
-  // NOTE: Depending on the model inputs, you may need to change the image size,
-  // mean, std and the tensors struct Also, make sure to adapt the
-  // `resize_image` and `build_tensors_struct` function to your needs
-  uint8_t *data = (uint8_t *)load_image(image_path, 320, 240, 127, 128, true);
-  if (data == NULL) {
-    log_error(logger, "Failed to load image.");
-    destroy_runtime(runtime);  // Clean up resources
-    return 1;
+  double elapsed = now_ms() - start;
+  printf("OK: %d/%d requests answered in %.1f ms (%.1f ms per request)\n",
+         NUM_REQUESTS, NUM_REQUESTS, elapsed, elapsed / NUM_REQUESTS);
+  exit_code = 0;
+
+cleanup:
+  // Stops the runtime's threads and drops pending inputs and outputs
+  if ((status = runtime.cleanup()) != RUNTIME_STATUS_SUCCESS) {
+    report_error(&runtime, "runtime_cleanup", status);
+    exit_code = 1;
   }
-  // Create the input tensors struct from the image
-  // NOTE: Adjust the image size, mean, std and the tensors struct
-  // Also, make sure to adapt the `resize_image` and `build_tensors_struct`
-  // function to your needs
-  original_input_tensors = build_tensors_struct(data, 240, 320, 3);
-  if (original_input_tensors == NULL) {
-    log_error(logger, "Failed to build input tensors.");
-    free(data);                // Free the image data
-    destroy_runtime(runtime);  // Clean up resources
-    return 1;
-  }
-  log_info(logger, "Input tensors created with %zu tensors.",
-           original_input_tensors->num_tensors);
-  // Start sending inputs and receiving outputs
-  ThreadHandle send_input_thread_handle, receive_output_thread_handle;
-
-  if (thread_create(&send_input_thread_handle, send_input_thread, runtime) !=
-      0) {
-    log_error(logger, "Failed to create send_input_thread.");
-    deep_free_tensors_struct(original_input_tensors);
-    destroy_runtime(runtime);
-    return 1;
-  }
-
-  if (thread_create(&receive_output_thread_handle, receive_output_thread,
-                    runtime) != 0) {
-    log_error(logger, "Failed to create receive_output_thread.");
-    deep_free_tensors_struct(original_input_tensors);
-    destroy_runtime(runtime);
-    return 1;
-  }
-  log_info(logger, "Threads created successfully. Starting inference...");
-
-  // Wait for threads to complete
-  // record current timestamp
-  start_recording(&timer);
-  thread_join(&send_input_thread_handle);
-  thread_join(&receive_output_thread_handle);
-  stop_recording(&timer);
-
-  // Clean up
-  log_info(logger, "Inference completed. Cleaning up resources...");
-  deep_free_tensors_struct(original_input_tensors);
-  original_input_tensors = NULL;
-
-  destroy_runtime(runtime);
-
-  // Optional: Print run stats
-  print_memory_usage("CLOSE");
-  print_human_readable_stats(&timer, NUMBER_OF_INFERENCES);
-
-  return 0;
+unload:
+  free(image);
+  unload_runtime_library(&runtime);
+  return exit_code;
 }

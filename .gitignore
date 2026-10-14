@@ -12,4 +12,4 @@ output.jpg
 *.so.*
 *.tar
 logs.json
-*-simplified.onnx
+*-simplified.onnxruntime.log

@@ -1,8 +1,9 @@
+#!/usr/bin/env bash
 set -e
 
 cd "$(dirname "$0")"
 
-mkdir build || true
+mkdir -p build
 cd build
 cmake ..
 make -j
