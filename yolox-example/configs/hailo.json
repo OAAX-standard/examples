@@ -1,0 +1,2 @@
+{"start_node_names": [], "end_node_names": [], "height": 640, "width": 640, "channels": 3,
+ "nchw": false, "means": [0.0, 0.0, 0.0], "stds": [1.0, 1.0, 1.0]}

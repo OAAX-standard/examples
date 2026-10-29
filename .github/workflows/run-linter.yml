@@ -21,6 +21,7 @@ jobs:
         run: |
           find ./c-example/src -regex '.*\.\(cpp\|cc\|c\|h\|hpp\)' -exec cpplint --filter=-readability/casting {} +
           find ./c-example/include -regex '.*\.\(cpp\|cc\|c\|h\|hpp\)' -exec cpplint --filter=-readability/casting {} +
+          find ./yolox-example/src ./yolox-example/include ./yolox-example/tests -regex '.*\.\(cpp\|cc\|c\|h\|hpp\)' -exec cpplint --filter=-readability/casting {} +
     
   run-clang-format:
     runs-on: ubuntu-22.04
@@ -44,3 +45,4 @@ jobs:
         run: |
           find ./c-example/src \( -iname '*.c' -o -iname '*.h' \) | xargs clang-format -style=file:.clang-format --dry-run --Werror
           find ./c-example/include \( -iname '*.c' -o -iname '*.h' \) | xargs clang-format -style=file:.clang-format --dry-run --Werror
+          find ./yolox-example/src ./yolox-example/include ./yolox-example/tests \( -iname '*.c' -o -iname '*.h' \) | xargs clang-format -style=file:.clang-format --dry-run --Werror

@@ -10,8 +10,11 @@ ready-to-use CPU runtimes are all included.
 
 ## Structure
 
+- [yolox-example](yolox-example): runs the official YOLOX object detector on **any** OAAX runtime (CPU, Intel, NVIDIA,
+  DEEPX, Hailo, ...) with one host: you choose the runtime library, the model converted for it and the device, and it
+  draws the detections on the image. Per-chip conversion and run commands are in its README.
 - [c-example](c-example): loads an OAAX runtime in a C program, runs a face detection model on an image and prints the
-  detections. Works on Linux (x86_64, aarch64) and Windows (x86_64).
+  detections. Works on Linux (x86_64, aarch64) and Windows (x86_64). It is tied to its demo model.
 
 ## Getting started
 
@@ -22,7 +25,8 @@ sudo apt-get install cmake build-essential libjpeg-dev  # Ubuntu
 bash c-example/build-run.sh
 ```
 
-See the [c-example README](c-example/README.md) for details, and for how to use your own runtime, model and image.
+See the [c-example README](c-example/README.md) for details, and for how to use your own runtime, model and image. For
+YOLOX on the CPU runtime, and for every other chip, follow the [yolox-example README](yolox-example/README.md).
 
 ## Using another accelerator
 
