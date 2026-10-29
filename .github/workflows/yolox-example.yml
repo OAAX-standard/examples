@@ -1,0 +1,73 @@
+name: YOLOX example
+
+# Builds the YOLOX host, runs its unit tests, then runs it end to end with the CPU runtime and checks the
+# detections against the golden ones. On Linux x86_64 the model also goes through the CPU conversion toolchain.
+on:
+  push:
+    paths:
+      - "yolox-example/**"
+      - ".github/workflows/yolox-example.yml"
+  pull_request:
+    paths:
+      - "yolox-example/**"
+      - ".github/workflows/yolox-example.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  yolox-example:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-22.04-arm, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: yolox-example
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Build and run the unit tests
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release
+          ctest --test-dir build -C Release --output-on-failure
+
+      - uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+        with:
+          enable-cache: false
+
+      - name: Fetch the CPU runtime and the model
+        run: |
+          uvx oaax-manager@0.1.1 fetch runtime cpu
+          bash fetch_model.sh
+
+      # The toolchain is a Docker image: Linux x86_64 only
+      - name: Convert the model with the CPU toolchain
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          uvx oaax-manager@0.1.1 fetch toolchain cpu
+          docker load -i oaax-cpu-toolchain-2.0.0.tar
+          mkdir -p convert/input convert/output
+          cp models/yolox_s.onnx convert/input/
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/convert/input:/input" -v "$PWD/convert/output:/output" \
+            oaax-cpu-toolchain:2.0.0 /input/yolox_s.onnx /output
+          echo "MODEL=convert/output/yolox_s-simplified.onnx" >> "$GITHUB_ENV"
+
+      - name: Run it and check the detections
+        run: |
+          host=$(find build -type f \( -name yolox_host -o -name yolox_host.exe \) | head -1)
+          runtime=$(find runtime-cpu-* -type f \( -name 'libRuntimeLibrary.so' -o -name 'RuntimeLibrary.dll' \) | head -1)
+          "$host" "$runtime" "${MODEL:-models/yolox_s.onnx}" artifacts/dog-bicycle.jpg --output detections.png \
+            | uv run --no-project python tests/check_detections.py
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: detections-${{ matrix.os }}
+          path: yolox-example/detections.png
