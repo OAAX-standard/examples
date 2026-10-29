@@ -1,4 +1,4 @@
-"""Checks the detections printed by yolox_host against the golden ones of artifacts/street.jpg.
+"""Checks the detections printed by yolox_host against the golden ones of artifacts/dog-bicycle.jpg.
 
 Usage: yolox_host ... | uv run --no-project python tests/check_detections.py
 
@@ -11,11 +11,8 @@ import sys
 
 # yolox_s on the CPU runtime (ONNX Runtime), score >= 0.30, NMS 0.45: class, score, x1, y1, x2, y2
 GOLDEN = [
-    ("person", 0.906, 361, 81, 672, 824),
-    ("person", 0.903, 619, 61, 816, 786),
-    ("dog", 0.903, 240, 596, 381, 774),
-    ("bus", 0.853, 68, 1, 1239, 488),
-    ("backpack", 0.749, 485, 198, 646, 453),
+    ("bicycle", 0.953, 616, 210, 1228, 806),
+    ("dog", 0.934, 216, 244, 521, 587),
 ]
 LINE = re.compile(r"^\s+(\D+?)\s+(\d\.\d+)\s+\(\s*(\d+),\s*(\d+)\)\s*-\s*\(\s*(\d+),\s*(\d+)\)\s*$")
 

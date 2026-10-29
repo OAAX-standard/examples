@@ -64,7 +64,7 @@ jobs:
         run: |
           host=$(find build -type f \( -name yolox_host -o -name yolox_host.exe \) | head -1)
           runtime=$(find runtime-cpu-* -type f \( -name 'libRuntimeLibrary.so' -o -name 'RuntimeLibrary.dll' \) | head -1)
-          "$host" "$runtime" "${MODEL:-models/yolox_s.onnx}" artifacts/street.jpg --output detections.png \
+          "$host" "$runtime" "${MODEL:-models/yolox_s.onnx}" artifacts/dog-bicycle.jpg --output detections.png \
             | uv run --no-project python tests/check_detections.py
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

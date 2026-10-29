@@ -1,2 +1,3 @@
-{"start_node_names": [], "end_node_names": [], "height": 640, "width": 640, "channels": 3,
- "nchw": false, "means": [0.0, 0.0, 0.0], "stds": [1.0, 1.0, 1.0]}
+{"start_node_names": [],
+ "end_node_names": ["Sigmoid_264", "Conv_261", "Sigmoid_263", "Sigmoid_285", "Conv_282", "Sigmoid_284", "Sigmoid_306", "Conv_303", "Sigmoid_305"],
+ "height": 640, "width": 640, "channels": 3, "nchw": false, "means": [0.0, 0.0, 0.0], "stds": [1.0, 1.0, 1.0]}

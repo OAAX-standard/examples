@@ -4,7 +4,7 @@ One small C host that runs the official **YOLOX** object detector on **any OAAX 
 You pick the runtime library, the model converted for it and the device; the host prints the runtime's name, the
 detections and draws them on the image.
 
-![YOLOX detections: a bus, two people, a backpack and a dog](artifacts/detections.jpg)
+![YOLOX detections: a dog and a bicycle](artifacts/detections.jpg)
 
 - **Standard model**: the official `yolox_s.onnx` of the YOLOX authors (80 COCO classes, no NMS inside, so every
   toolchain can convert it).
@@ -18,7 +18,7 @@ sudo apt-get install -y cmake build-essential           # Ubuntu; nothing else i
 cmake -S . -B build && cmake --build build              # builds build/yolox_host
 bash fetch_model.sh                                     # models/yolox_s.onnx, sha256 checked
 uvx oaax-manager fetch runtime cpu                      # the CPU runtime, see https://docs.oaax.org
-./build/yolox_host runtime-cpu-2.0.0-linux-x86_64/libRuntimeLibrary.so models/yolox_s.onnx artifacts/street.jpg
+./build/yolox_host runtime-cpu-2.0.0-linux-x86_64/libRuntimeLibrary.so models/yolox_s.onnx artifacts/dog-bicycle.jpg
 ```
 
 Output (the CPU runtime takes the `.onnx` directly; numbers are from the machine described under
@@ -29,14 +29,11 @@ Runtime: OAAX CPU Runtime 2.0.0
 Runtime info: {"loaded_models":1,"requests_in_flight":0,"backend_version":"1.17.3"}
 Input: 'images' float32 NCHW, 1280x854 image letterboxed to 640
 Output tensor 'output': type 1, shape [1, 8400, 85]
-Detections (score >= 0.30, NMS IoU 0.45): 5
-  person         0.906  ( 361,   81) - ( 672,  824)
-  person         0.903  ( 619,   61) - ( 816,  786)
-  dog            0.903  ( 240,  596) - ( 381,  774)
-  bus            0.853  (  68,    1) - (1239,  488)
-  backpack       0.749  ( 485,  198) - ( 646,  453)
+Detections (score >= 0.30, NMS IoU 0.45): 2
+  bicycle        0.953  ( 616,  210) - (1228,  806)
+  dog            0.934  ( 216,  244) - ( 521,  587)
 Wrote detections.png
-OK: 10 requests, first 79.4 ms (warm-up), then 74.5 ms on average (min 68.9 ms)
+OK: 10 requests, first 74.4 ms (warm-up), then 71.2 ms on average (min 63.8 ms)
 ```
 
 `detections.png` is the picture above. The host exits with a non-zero code if any request fails.
@@ -77,13 +74,13 @@ come from [`oaax-manager`](https://github.com/OAAX-standard/oaax-manager); a too
 | [NVIDIA ONNX Runtime](#nvidia) | `.onnx` | float32 NCHW | none |
 | [NVIDIA TensorRT](#nvidia) | `.trt` engine | float32 NCHW | none |
 | [DEEPX](#deepx) | `.dxnn` | **uint8 NHWC** | `--layout nhwc --dtype uint8` |
-| [Hailo](#hailo) | `.hailo8.onnx` | the SDK may **rename the input** (e.g. `input0`) | `--input-name <name in the converted model>` |
+| [Hailo](#hailo) | `.hailo8.onnx` | float32 NCHW, the SDK **renames the input** to `input0` | `--input-name input0` |
 
 ### CPU
 
 ```bash
 uvx oaax-manager fetch runtime cpu
-./build/yolox_host runtime-cpu-2.0.0-linux-x86_64/libRuntimeLibrary.so models/yolox_s.onnx artifacts/street.jpg
+./build/yolox_host runtime-cpu-2.0.0-linux-x86_64/libRuntimeLibrary.so models/yolox_s.onnx artifacts/dog-bicycle.jpg
 ```
 
 With the toolchain (writes `yolox_s-simplified.onnx`; the input folder must be writable, the toolchain saves next to the input):
@@ -93,7 +90,7 @@ uvx oaax-manager fetch toolchain cpu && docker load -i oaax-cpu-toolchain-2.0.0.
 mkdir -p convert/input convert/output && cp models/yolox_s.onnx convert/input/
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/convert/input:/input" -v "$PWD/convert/output:/output" \
   oaax-cpu-toolchain:2.0.0 /input/yolox_s.onnx /output
-./build/yolox_host runtime-cpu-2.0.0-linux-x86_64/libRuntimeLibrary.so convert/output/yolox_s-simplified.onnx artifacts/street.jpg
+./build/yolox_host runtime-cpu-2.0.0-linux-x86_64/libRuntimeLibrary.so convert/output/yolox_s-simplified.onnx artifacts/dog-bicycle.jpg
 ```
 
 ### Intel
@@ -107,7 +104,7 @@ mkdir -p intel/input intel/output && cp models/yolox_s.onnx intel/input/model.on
 (cd intel/input && zip model.zip model.onnx config.json)
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/intel/input:/input" -v "$PWD/intel/output:/output" \
   oaax-intel-toolchain:latest /input/model.zip /output
-./build/yolox_host runtime-intel-2.0.0-linux-x86_64/libRuntimeLibrary.so intel/output/model.zip artifacts/street.jpg --config device_type=GPU
+./build/yolox_host runtime-intel-2.0.0-linux-x86_64/libRuntimeLibrary.so intel/output/model.zip artifacts/dog-bicycle.jpg --config device_type=GPU
 ```
 
 `device_type` is `CPU`, `GPU`, `NPU` or `AUTO`. **Check `effective_device` in the `Runtime info` line**: a device that cannot
@@ -127,7 +124,7 @@ uvx oaax-manager fetch runtime nvidia-ort --variant cuda13
 uvx oaax-manager fetch toolchain nvidia-ort && docker load -i oaax-nvidia-onnxruntime-toolchain-2.0.0.tar
 mkdir -p ort && cp models/yolox_s.onnx ort/model.onnx
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/ort:/model" oaax-nvidia-toolchain:2.0.0 /model/model.onnx /model/output
-./build/yolox_host runtime-nvidia-ort-2.0.0-linux-x86_64-cuda13/libRuntimeLibrary.so ort/output/model-simplified.onnx artifacts/street.jpg
+./build/yolox_host runtime-nvidia-ort-2.0.0-linux-x86_64-cuda13/libRuntimeLibrary.so ort/output/model-simplified.onnx artifacts/dog-bicycle.jpg
 ```
 
 **TensorRT** (the toolchain builds the engine on the GPU it runs on, a TensorRT 10 engine needs a `trt10` runtime;
@@ -140,7 +137,7 @@ mkdir -p trt/input trt/output && cp models/yolox_s.onnx trt/input/model.onnx && 
 (cd trt/input && zip bundle.zip model.onnx config.json)
 docker run --rm --gpus all --user "$(id -u):$(id -g)" -v "$PWD/trt/input:/input" -v "$PWD/trt/output:/output" \
   oaax-nvidia-tensorrt-toolchain:2.0.0 /input/bundle.zip /output
-./build/yolox_host runtime-nvidia-trt-2.0.0-linux-x86_64-ubuntu22.04-trt10-cuda13/libRuntimeLibrary.so trt/output/model.trt artifacts/street.jpg
+./build/yolox_host runtime-nvidia-trt-2.0.0-linux-x86_64-ubuntu22.04-trt10-cuda13/libRuntimeLibrary.so trt/output/model.trt artifacts/dog-bicycle.jpg
 ```
 
 ### DEEPX
@@ -157,7 +154,7 @@ curl -fsSL https://sdk.deepx.ai/dataset/calibration_dataset.tar.gz | tar xz --st
 cp models/yolox_s.onnx deepx/ && cp configs/deepx.json deepx/yolox_s.json
 (cd deepx && zip -qr yolox_s.zip yolox_s.onnx yolox_s.json calibration_dataset)
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/deepx:/work" oaax-deepx-toolchain:2.0.0 /work/yolox_s.zip /work/out    # about 5 minutes
-./build/yolox_host runtime-deepx-2.0.0-linux-x86_64-ubuntu22.04-dxrt3.3.2/libRuntimeLibrary.so deepx/out/yolox_s.dxnn artifacts/street.jpg \
+./build/yolox_host runtime-deepx-2.0.0-linux-x86_64-ubuntu22.04-dxrt3.3.2/libRuntimeLibrary.so deepx/out/yolox_s.dxnn artifacts/dog-bicycle.jpg \
   --layout nhwc --dtype uint8
 ```
 
@@ -165,46 +162,48 @@ Needs DX-RT 3.3.2 and a DEEPX card.
 
 ### Hailo
 
-**Not verified**: the Hailo SDK is not redistributable and was not available for this example. What follows comes
-from the Hailo page and the toolchain's README, not from a run.
+The Hailo toolchain needs three files of Hailo's SDK (not redistributable, so not in this repository): the Dataflow
+Compiler wheel, the HailoRT wheel and the HailoRT `.deb` (`libhailort`). Put them in `hailo-deps/`, see the Hailo page. Verified with Dataflow Compiler 3.29.0 and HailoRT 4.19.0 (wheel and
+`libhailort`), running on a Hailo-8 with HailoRT 4.20.0.
+[`configs/hailo.json`](configs/hailo.json) lists the nine head nodes of the official `yolox_s.onnx` as `end_node_names`
+(the toolchain's automatic detection is made for YOLOv8 heads and finds only six of them) and feeds the calibration images as
+raw 0-255 pixels (`means` 0, `stds` 1), which is what YOLOX takes. The Focus slicing in front and the reshape behind stay in
+the converted model; the chip runs the convolutions.
 
 ```bash
 uvx oaax-manager fetch runtime hailo --variant hailort4.20.0
 uvx oaax-manager fetch toolchain hailo && docker load -i oaax-hailo-toolchain-2.0.0.tar
-# put the three Hailo SDK files in hailo-deps/ (see the Hailo page), then:
 mkdir -p hailo/input hailo/output && cp models/yolox_s.onnx hailo/input/ && cp configs/hailo.json hailo/input/yolox_s.json
 (cd hailo/input && zip yolox_s.zip yolox_s.onnx yolox_s.json)
-docker run --rm -v "$PWD/hailo-deps:/app/hailo-deps" -v "$PWD/hailo/input:/app/input:ro" -v "$PWD/hailo/output:/app/output" \
-  onnx-to-hailo:latest /app/input/yolox_s.zip /app/output
+docker run --rm -e PIP_FIND_LINKS=https://storage.googleapis.com/jax-releases/jax_releases.html \
+  -v "$PWD/hailo-deps:/app/hailo-deps" -v "$PWD/hailo/input:/app/input:ro" -v "$PWD/hailo/output:/app/output" \
+  onnx-to-hailo:latest /app/input/yolox_s.zip /app/output      # about 14 minutes; no --user, the container writes as root
+./build/yolox_host runtime-hailo-2.0.0-linux-x86_64-hailort4.20.0/libRuntimeLibrary.so hailo/output/yolox_s.hailo8.onnx artifacts/dog-bicycle.jpg \
+  --input-name input0
 ```
 
-`configs/hailo.json` feeds the calibration images as raw 0-255 pixels (`means` 0, `stds` 1), which is what YOLOX takes.
-`start_node_names` / `end_node_names` may need to be set to cut the graph around the Hailo-compiled part (an earlier YOLOX
-conversion kept the Focus slicing and the final reshape on the host). Then read the input name from the converted model
-(`onnx.load(...).graph.input`) and run:
-
-```bash
-./build/yolox_host runtime-hailo-2.0.0-linux-x86_64-hailort4.20.0/libRuntimeLibrary.so hailo/output/yolox_s.hailo8.onnx artifacts/street.jpg \
-  --input-name <name>
-```
+The SDK renames the input to `input0` (read it with `onnx.load(...).graph.input` for another model); layout, type and values
+are the defaults. `PIP_FIND_LINKS` is needed because the Dataflow Compiler 3.29 requires `jaxlib==0.4.13`, which is no
+longer on PyPI. The conversion exits with `Successful Conversion` in `logs.json`; check it, a failure at the last step
+still ends the container normally.
 
 ## Tested
 
 Ubuntu 22.04, x86_64, 20 cores (a busy machine, so the CPU times vary), RTX A4000 (driver 580, CUDA 13), Intel integrated GPU,
-Hailo-8 (HailoRT 4.20.0), `yolox_s.onnx` at 640, `artifacts/street.jpg`, 50 requests (average of the requests after the first); all runtimes and toolchains are the 2.0.0 ones.
+Hailo-8 (HailoRT 4.20.0), `yolox_s.onnx` at 640, `artifacts/dog-bicycle.jpg`, 50 requests (average of the requests after the first); all runtimes and toolchains are the 2.0.0 ones.
 
 | Chip | Converts | Runs | Time per request | Detections vs the CPU run |
 | --- | --- | --- | --- | --- |
-| CPU | yes, 4 s | yes | 75-110 ms | reference |
-| Intel, CPU device, FP32 | yes, 3 s | yes | 41-54 ms | identical |
+| CPU | yes, 4 s | yes | 71-110 ms | reference |
+| Intel, CPU device, FP32 | yes, 3 s | yes | 44-54 ms | identical |
 | Intel, GPU device, FP32 | same model | yes (`effective_device` GPU) | 55-57 ms | identical |
-| Intel, FP16 (default conversion), CPU and GPU | yes | yes, `--dtype float16` | 40-60 ms | boxes within 1 px, scores within 0.001 |
-| Intel, INT8 | yes, 19 s, needs a workaround (Findings) | yes, `--dtype uint8` | 14.5 ms (CPU) | boxes within 7 px, scores within 0.03 |
-| NVIDIA ONNX Runtime, CUDA 13 | yes, 3 s | yes | 10.8 ms | boxes within 1 px |
+| Intel, FP16 (default conversion), CPU and GPU | yes | yes, `--dtype float16` | 41-60 ms | boxes within 1 px, scores within 0.001 |
+| Intel, INT8 | yes, 19 s, needs a workaround (Findings) | yes, `--dtype uint8` | 14.7 ms (CPU) | boxes within 6 px, scores within 0.005 |
+| NVIDIA ONNX Runtime, CUDA 13 | yes, 3 s | yes | 10.7 ms | boxes within 1 px |
 | NVIDIA TensorRT 10, FP32 | yes, 51 s | yes | 5.4 ms | boxes within 1 px |
-| NVIDIA TensorRT 10, FP16 | yes, 2 min 3 s | yes | 4.0 ms | boxes within 1 px |
+| NVIDIA TensorRT 10, FP16 | yes, 2 min 3 s | yes | 3.8 ms | boxes within 1 px |
 | DEEPX | yes, 4 min 51 s (100 calibration images) | **no card**; the host builds, the runtime does not load here (the DX-RT installed on this machine is too old: `undefined symbol`) | - | not checked |
-| Hailo | **not verified** (no SDK) | an older YOLOX-tiny conversion loads and runs on the Hailo-8 (10 ms, 416), but its output is not usable here, see below | 10 ms | not comparable |
+| Hailo-8 (Dataflow Compiler 3.29.0, HailoRT 4.20.0) | yes, 14 min (INT8, the toolchain's 64 default calibration images) | yes, `--input-name input0` | 12.1 ms | same classes and scores, boxes within 11 px (INT8) |
 
 ## Findings
 
@@ -222,9 +221,12 @@ Surprises met while making the example work on every chip; each is a candidate f
 - **DEEPX**: the compiled model has no preprocessing (`0 nodes added`), so the host sends raw uint8 NHWC. The
   calibration `resize` uses `pad_location: edge` (YOLOX pads right and bottom); whether that is the same placement, and the
   accuracy of the INT8 model, could not be checked without a card.
-- **Hailo (older conversion, YOLOX-tiny, `images` input)**: with raw 0-255 pixels its objectness output is exactly 0
-  for every anchor, so there are no detections; with pixels scaled to 0-1 there are (the dog is found within 2 px of the
-  CPU result, but scores stay below 0.3). A conversion made for this example must use the normalization it will run with.
+- **Hailo**: the Dataflow Compiler 3.29.0 wheel needs `jaxlib==0.4.13`, which is gone from PyPI (`PIP_FIND_LINKS` above fixes
+  it); the HailoRT wheel imports `libhailort.so.<same version>`, which only the `.deb` provides, and without it the
+  compile runs 14 minutes and then fails at the last step (`The HailoRT Python API (hailo_platform package) must be
+  installed`); the automatic end-node detection returns 6 of the 9 head nodes of YOLOX; the compiler warns that with fewer than
+  1024 calibration images and no GPU it uses optimization level 0, which explains the 11 px box differences. A model compiled
+  with HailoRT 4.19 / DFC 3.29 runs on the 4.20.0 runtime.
 
 ## How it works
 
@@ -234,7 +236,7 @@ Surprises met while making the example work on every chip; each is a candidate f
 | `src/yolox.c` | The YOLOX part, without OAAX: letterbox, decode, NMS, class names. Unit tested. |
 | `src/image.c` | Loads the image, draws the boxes and labels, saves the picture. |
 | `src/runtime.c`, `src/tensors.c`, `deps/oaax/interface.h` | Load the runtime library and build tensors: the same files as the [C example](../c-example) (that README explains the interface and who frees what). |
-| `tests/` | `test_yolox.c`: unit tests of the letterbox, the decoding and the NMS (`ctest`). `check_detections.py`: compares a run with the golden detections of `street.jpg` (used by the CI). |
+| `tests/` | `test_yolox.c`: unit tests of the letterbox, the decoding and the NMS (`ctest`). `check_detections.py`: compares a run with the golden detections of `dog-bicycle.jpg` (used by the CI). |
 | `third_party/stb/` | Single-header image loader, writer and font from [stb](https://github.com/nothings/stb), public domain or MIT. |
 
 The host loads the runtime (`dlopen` / `LoadLibrary`), calls `runtime_init` with the `--config` pairs, `runtime_load_models`
@@ -250,7 +252,7 @@ with the model path, then for each run `runtime_enqueue_input` and `runtime_retr
 4. **Map back** to the original image (divide by the scale, clip to the image) and print and draw.
 
 The result was compared with the official demo's preprocessing, `demo_postprocess` and NMS functions run in Python (ONNX Runtime,
-OpenCV): same 5 detections, boxes within 1 px.
+OpenCV): same 2 detections, boxes within 1 px.
 EXIF rotation of the input image is ignored.
 
 ## Tests and CI
@@ -269,8 +271,9 @@ CPU toolchain.
 - This example: Apache License 2.0 (the repository's [LICENSE](../LICENSE)).
 - `yolox_s.onnx` (downloaded by `fetch_model.sh`, not stored here): (c) Megvii Inc., Apache License 2.0
   ([YOLOX](https://github.com/Megvii-BaseDetection/YOLOX)). The release has no separate weights license.
-- `artifacts/street.jpg`: [Moscow, Paveletskaya Square, people at bus stop Sept 2025 01.jpg](https://commons.wikimedia.org/wiki/File:Moscow,_Paveletskaya_Square,_people_at_bus_stop_Sept_2025_01.jpg)
-  by Retired electrician, **CC0 1.0** (public domain dedication), scaled to 1280 pixels wide. The YOLOX repository's own
-  `dog.jpg` is not used because no license is stated for it.
+- `artifacts/dog-bicycle.jpg`: [Dog from Barcelona 01.jpg](https://commons.wikimedia.org/wiki/File:Dog_from_Barcelona_01.jpg)
+  by Nicolas Vigier (from [Flickr](https://www.flickr.com/photos/boklm/33439632533/)), **CC0 1.0** (public domain
+  dedication), scaled to 1280 pixels wide. It shows no person and no license plate. The YOLOX repository's own `dog.jpg`
+  is not used because no license is stated for it.
 - `third_party/stb/`: [stb](https://github.com/nothings/stb) by Sean Barrett, public domain (Unlicense) or MIT; the
   license text is in `third_party/stb/LICENSE`.
