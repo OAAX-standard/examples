@@ -203,7 +203,7 @@ Hailo-8 (HailoRT 4.20.0), `yolox_s.onnx` at 640, `artifacts/street.jpg`, 50 requ
 | NVIDIA ONNX Runtime, CUDA 13 | yes, 3 s | yes | 10.8 ms | boxes within 1 px |
 | NVIDIA TensorRT 10, FP32 | yes, 51 s | yes | 5.4 ms | boxes within 1 px |
 | NVIDIA TensorRT 10, FP16 | yes, 2 min 3 s | yes | 4.0 ms | boxes within 1 px |
-| DEEPX | yes, 4 min 51 s (100 calibration images) | **no card**; the host builds, the runtime does not load here (the installed DX-RT is older than 3.3.2) | - | not checked |
+| DEEPX | yes, 4 min 51 s (100 calibration images) | **no card**; the host builds, the runtime does not load here (the DX-RT installed on this machine is too old: `undefined symbol`) | - | not checked |
 | Hailo | **not verified** (no SDK) | an older YOLOX-tiny conversion loads and runs on the Hailo-8 (10 ms, 416), but its output is not usable here, see below | 10 ms | not comparable |
 
 ## Findings
@@ -249,7 +249,8 @@ with the model path, then for each run `runtime_enqueue_input` and `runtime_retr
    the class-aware version keeps overlapping boxes of different classes.
 4. **Map back** to the original image (divide by the scale, clip to the image) and print and draw.
 
-The run is checked against the official demo's Python code (ONNX Runtime, OpenCV): same 5 detections, boxes within 1 px.
+The result was compared with the official demo's preprocessing, `demo_postprocess` and NMS functions run in Python (ONNX Runtime,
+OpenCV): same 5 detections, boxes within 1 px.
 EXIF rotation of the input image is ignored.
 
 ## Tests and CI
