@@ -202,7 +202,7 @@ Hailo-8 (HailoRT 4.20.0), `yolox_s.onnx` at 640, `artifacts/dog-bicycle.jpg`, 50
 | NVIDIA ONNX Runtime, CUDA 13 | yes, 3 s | yes | 10.7 ms | boxes within 1 px |
 | NVIDIA TensorRT 10, FP32 | yes, 51 s | yes | 5.4 ms | boxes within 1 px |
 | NVIDIA TensorRT 10, FP16 | yes, 2 min 3 s | yes | 3.8 ms | boxes within 1 px |
-| DEEPX | yes, 4 min 51 s (100 calibration images) | **no card**; the host builds, the runtime does not load here (the DX-RT installed on this machine is too old: `undefined symbol`) | - | not checked |
+| DEEPX DX-M1 (DX-RT 3.3.2, Intel N97 host, Ubuntu 24.04) | yes, 4 min 14 s (100 calibration images) | yes, `--layout nhwc --dtype uint8` | 24.3 ms (10 requests, first 34.6 ms) | same two objects, boxes within 4 px, scores within 0.007 (INT8) |
 | Hailo-8 (Dataflow Compiler 3.29.0, HailoRT 4.20.0) | yes, 14 min (INT8, the toolchain's 64 default calibration images) | yes, `--input-name input0` | 12.1 ms | same classes and scores, boxes within 11 px (INT8) |
 
 ## Findings
@@ -218,9 +218,7 @@ Surprises met while making the example work on every chip; each is a candidate f
   `model expects f16 but caller sent f32`).
 - **The CPU toolchain writes next to its input** (`<name>-simplified.onnx` in `/input`): mount the input folder writable,
   not `:ro`.
-- **DEEPX**: the compiled model has no preprocessing (`0 nodes added`), so the host sends raw uint8 NHWC. The
-  calibration `resize` uses `pad_location: edge` (YOLOX pads right and bottom); whether that is the same placement, and the
-  accuracy of the INT8 model, could not be checked without a card.
+- **DEEPX**: the compiled model has no preprocessing (`0 nodes added`), so the host sends raw uint8 NHWC. On a DX-M1 the boxes land within 4 px of the CPU run, so the calibration `resize` (`pad_location: edge`) does not hurt this model.
 - **Hailo**: the Dataflow Compiler 3.29.0 wheel needs `jaxlib==0.4.13`, which is gone from PyPI (`PIP_FIND_LINKS` above fixes
   it); the HailoRT wheel imports `libhailort.so.<same version>`, which only the `.deb` provides, and without it the
   compile runs 14 minutes and then fails at the last step (`The HailoRT Python API (hailo_platform package) must be
